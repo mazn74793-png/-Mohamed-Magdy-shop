@@ -194,6 +194,7 @@ export default function App() {
   const [activeImgIdx, setActiveImgIdx] = useState(0);
   const [isZoomed, setIsZoomed] = useState(false);
   const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });
+  const [isFullscreenView, setIsFullscreenView] = useState(false);
 
   // Admin Form State
   const [isEditing, setIsEditing] = useState<string | null>(null);
@@ -1070,124 +1071,175 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* --- Fullscreen Image Modal --- */}
+      <AnimatePresence>
+        {isFullscreenView && selectedProduct && (
+          <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/95 backdrop-blur-3xl">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0" onClick={() => setIsFullscreenView(false)} />
+            <button onClick={() => setIsFullscreenView(false)} className="absolute top-10 right-10 p-4 glass rounded-full hover:bg-white/20 z-[410]"><X size={32} /></button>
+            <motion.img 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              src={(selectedProduct.images ? selectedProduct.images[activeImgIdx] : selectedProduct.img) || ''} 
+              className="max-w-[90vw] max-h-[90vh] object-contain shadow-2xl relative z-[405]"
+            />
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* --- Product Detail Modal --- */}
       {/* --- Product Detail Modal --- */}
       <AnimatePresence>
         {selectedProduct && (
-          <div className="fixed inset-0 z-[280] flex items-center justify-center p-4 sm:p-20 overflow-y-auto">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedProduct(null)} className="absolute inset-0 bg-black/90 backdrop-blur-2xl" />
-            <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }} className="relative w-full max-w-6xl glass rounded-[48px] bg-white/5 border-white/10 overflow-hidden grid grid-cols-1 lg:grid-cols-2 shadow-4xl">
-               <button onClick={() => setSelectedProduct(null)} className="absolute top-6 right-6 p-3 glass rounded-full hover:bg-white/20 z-10"><X /></button>
-               <div className="flex flex-col lg:flex-row h-full">
-                  <div className="relative w-full lg:w-[500px] shrink-0 bg-black overflow-hidden flex flex-col">
-                    <div 
-                      className="relative flex-1 cursor-zoom-in overflow-hidden group"
-                      onMouseMove={(e) => {
-                        const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
-                        const x = ((e.pageX - left) / width) * 100;
-                        const y = ((e.pageY - top) / height) * 100;
-                        setZoomPos({ x, y });
-                      }}
-                      onMouseEnter={() => setIsZoomed(true)}
-                      onMouseLeave={() => setIsZoomed(false)}
-                    >
-                      <motion.img 
-                        key={activeImgIdx}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        src={selectedProduct.images ? selectedProduct.images[activeImgIdx] : selectedProduct.img} 
-                        className={`w-full h-full object-cover transition-transform duration-200 ${isZoomed ? 'scale-[2.5]' : 'scale-100'}`}
-                        style={isZoomed ? { transformOrigin: `${zoomPos.x}% ${zoomPos.y}%` } : {}}
-                      />
-                      {!isZoomed && (
-                        <div className="absolute bottom-6 right-6 p-4 glass rounded-full bg-white/10 opacity-0 group-hover:opacity-100 transition-all">
-                           <Search size={20} />
-                        </div>
-                      )}
-                    </div>
-                    
-                    {selectedProduct.images && selectedProduct.images.length > 1 && (
-                      <div className="flex gap-3 p-6 bg-white/5 overflow-x-auto no-scrollbar">
-                        {selectedProduct.images.map((img, idx) => (
-                          <button 
-                            key={idx} 
-                            onClick={() => setActiveImgIdx(idx)}
-                            className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${activeImgIdx === idx ? 'border-accent-pink' : 'border-transparent opacity-40 hover:opacity-100'}`}
-                          >
-                            <img src={img} className="w-full h-full object-cover" />
-                          </button>
-                        ))}
+          <div className="fixed inset-0 z-[280] flex items-center justify-center p-0 lg:p-10 overflow-hidden">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedProduct(null)} className="absolute inset-0 bg-black/95 backdrop-blur-3xl" />
+            <motion.div 
+              initial={{ y: 50, opacity: 0 }} 
+              animate={{ y: 0, opacity: 1 }} 
+              exit={{ y: 50, opacity: 0 }} 
+              className="relative w-full h-full lg:h-[90vh] lg:max-w-7xl glass lg:rounded-[60px] shadow-4xl border-white/10 overflow-hidden grid grid-cols-1 lg:grid-cols-12"
+              style={{ background: theme === 'dark' ? '#0a0a0c' : '#ffffff' }}
+            >
+               <button onClick={() => setSelectedProduct(null)} className="absolute top-8 right-8 p-4 glass rounded-full hover:bg-white/20 z-[300] bg-black/50 text-white"><X /></button>
+               
+               {/* Left: Gallery */}
+               <div className="lg:col-span-7 h-[50vh] lg:h-full relative bg-gray-100 dark:bg-black/40 overflow-hidden flex flex-col">
+                  <div 
+                    className="relative flex-1 cursor-zoom-in overflow-hidden group"
+                    onClick={() => setIsFullscreenView(true)}
+                    onMouseMove={(e) => {
+                      const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+                      const x = ((e.pageX - left) / width) * 100;
+                      const y = ((e.pageY - top) / height) * 100;
+                      setZoomPos({ x, y });
+                    }}
+                    onMouseEnter={() => setIsZoomed(true)}
+                    onMouseLeave={() => setIsZoomed(false)}
+                  >
+                    <motion.img 
+                      key={activeImgIdx}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      src={selectedProduct.images ? selectedProduct.images[activeImgIdx] : selectedProduct.img} 
+                      className={`w-full h-full object-cover transition-transform duration-200 ${isZoomed ? 'scale-[2.2]' : 'scale-100'}`}
+                      style={isZoomed ? { transformOrigin: `${zoomPos.x}% ${zoomPos.y}%` } : {}}
+                    />
+                    {!isZoomed && (
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/5 pointer-events-none">
+                         <div className="p-5 glass rounded-full bg-white/20 backdrop-blur-sm shadow-2xl">
+                            <PlusCircle size={32} className="text-white" />
+                         </div>
                       </div>
                     )}
                   </div>
-
-                  <div className="flex-1 p-8 sm:p-16 overflow-y-auto max-h-[80vh] lg:max-h-full">
-                  <span className="text-xs font-black uppercase tracking-[4px] text-accent-pink mb-4">{getL(selectedProduct.category)}</span>
-                  <h2 className="text-4xl sm:text-6xl font-light mb-6 tracking-tight">{getL(selectedProduct.name)}</h2>
-                  <div className="flex items-center gap-6 mb-10">
-                    <span className="text-5xl font-black">{selectedProduct.price.toLocaleString()} {t('EGP')}</span>
-                    {selectedProduct.oldPrice && <span className="text-2xl line-through opacity-30">{selectedProduct.oldPrice.toLocaleString()} {t('EGP')}</span>}
-                  </div>
-                  <p className="text-lg opacity-60 font-serif italic leading-relaxed mb-12">
-                    {getL(selectedProduct.description) || (lang === 'EN' ? 
-                      "Meticulously crafted with premium fabrics, this piece embodies timeless elegance and contemporary style." :
-                      "صُممت هذه القطعة بدقة باستخدام أقمشة فاخرة، وتجسد الأناقة الخالدة.")
-                    }
-                  </p>
                   
+                  {selectedProduct.images && selectedProduct.images.length > 1 && (
+                    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-4 p-4 glass rounded-[32px] bg-black/20 backdrop-blur-xl border-white/10">
+                      {selectedProduct.images.map((img, idx) => (
+                        <button 
+                          key={idx} 
+                          onClick={(e) => { e.stopPropagation(); setActiveImgIdx(idx); }}
+                          className={`w-16 h-16 rounded-2xl overflow-hidden border-2 transition-all shrink-0 ${activeImgIdx === idx ? 'border-accent-pink scale-110' : 'border-transparent opacity-50 hover:opacity-100'}`}
+                        >
+                          <img src={img} className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+               </div>
+
+               {/* Right: Info */}
+               <div className={`lg:col-span-5 h-full overflow-y-auto p-10 sm:p-20 flex flex-col ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                   <div className="mb-12">
-                     <h3 className="text-sm font-bold uppercase tracking-widest mb-4 border-b border-white/10 pb-2">{t('STOCK')}</h3>
-                     <p className={`text-sm font-bold ${selectedProduct.stock > 0 ? 'text-accent-green' : 'text-accent-pink'}`}>
-                        {selectedProduct.stock > 0 ? `${t('IN_STOCK')}: ${selectedProduct.stock}` : t('OUT_OF_STOCK')}
-                     </p>
+                    <span className="text-xs font-black uppercase tracking-[6px] text-accent-pink/80 mb-6 block">{getL(selectedProduct.category)}</span>
+                    <h2 className="text-5xl sm:text-7xl font-black mb-8 leading-[1.1] tracking-tight">{getL(selectedProduct.name)}</h2>
+                    <div className="flex items-center gap-8 mb-12">
+                      <span className="text-5xl font-black text-accent-pink">{selectedProduct.price.toLocaleString()} <span className="text-2xl font-light opacity-50">{t('EGP')}</span></span>
+                      {selectedProduct.oldPrice && <span className="text-2xl line-through opacity-30 italic">{selectedProduct.oldPrice.toLocaleString()}</span>}
+                    </div>
+                    
+                    <div className="w-full h-px bg-current opacity-10 mb-12" />
+
+                    <p className="text-xl opacity-70 font-light leading-[1.8] mb-16 max-w-lg">
+                      {getL(selectedProduct.description) || (lang === 'EN' ? 
+                        "An exquisite embodiment of luxury craftsmanship, designed for those who appreciate the finer points of contemporary tailoring." :
+                        "تجسيد رائع للحرفية الفاخرة، مصمم لأولئك الذين يقدرون أدق تفاصيل التصميم العصري.")
+                      }
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-8 mb-16">
+                       <div className="p-8 glass rounded-[32px] bg-black/5 dark:bg-white/5 border-none">
+                          <h4 className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-3">{t('STOCK')}</h4>
+                          <p className={`text-xl font-black ${selectedProduct.stock > 0 ? 'text-accent-green' : 'text-accent-pink'}`}>
+                             {selectedProduct.stock > 0 ? `${selectedProduct.stock} ${t('ACTIVE_ITEMS')}` : t('OUT_OF_STOCK')}
+                          </p>
+                       </div>
+                       <div className="p-8 glass rounded-[32px] bg-black/5 dark:bg-white/5 border-none">
+                          <h4 className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-3">{t('DELIVERY')}</h4>
+                          <p className="text-xl font-black">{lang === 'AR' ? '2-4 أيام' : '2-4 Days'}</p>
+                       </div>
+                    </div>
+
+                    <button 
+                      onClick={() => addToCart(selectedProduct)}
+                      disabled={selectedProduct.stock <= 0}
+                      className={`w-full py-8 rounded-[32px] font-black uppercase tracking-[6px] transition-all shadow-4xl flex items-center justify-center gap-4 ${selectedProduct.stock > 0 ? 'bg-accent-pink text-white hover:scale-[1.03] active:scale-95' : 'bg-gray-500/20 text-gray-400 cursor-not-allowed'}`}
+                    >
+                      <ShoppingBag size={24} />
+                      {t('ADD_TO_CART')}
+                    </button>
                   </div>
 
-                  <div className="mb-12">
-                    <h3 className="text-sm font-bold uppercase tracking-widest mb-6 border-b border-white/10 pb-2">{t('REVIEWS')}</h3>
-                    <div className="space-y-6 mb-8">
+                  {/* Reviews Section */}
+                  <div className="mt-8">
+                    <div className="flex items-center justify-between mb-10 border-b border-current opacity-10 pb-4">
+                       <h3 className="text-sm font-black uppercase tracking-[4px]">{t('REVIEWS')}</h3>
+                       <div className="flex items-center gap-1 text-accent-pink">
+                          <Star size={16} fill="currentColor" />
+                          <span className="font-bold">4.9/5</span>
+                       </div>
+                    </div>
+                    
+                    <div className="space-y-8 mb-12">
                       {reviews.length > 0 ? reviews.map(r => (
-                        <div key={r.id} className="p-6 glass rounded-[32px] bg-white/5 border-white/5">
-                          <div className="flex items-center gap-4 mb-3">
-                            {r.userPhoto ? <img src={r.userPhoto} className="w-10 h-10 rounded-full" /> : <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center font-bold text-xs">{r.userName.charAt(0)}</div>}
+                        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} key={r.id} className="p-8 glass rounded-[32px] border-none bg-black/5 dark:bg-white/5 relative group/rev">
+                          <div className="flex items-center gap-4 mb-4">
+                            {r.userPhoto ? <img src={r.userPhoto} className="w-12 h-12 rounded-full border-2 border-white/20" /> : <div className="w-12 h-12 rounded-full bg-accent-pink/20 flex items-center justify-center font-black text-accent-pink text-sm uppercase">{r.userName.charAt(0)}</div>}
                             <div>
-                               <p className="text-xs font-bold">{r.userName}</p>
-                               <div className="flex items-center gap-1 text-accent-pink">
-                                  {[...Array(r.rating)].map((_, i) => <Star key={i} size={8} fill="currentColor" />)}
+                               <p className="font-black text-sm">{r.userName}</p>
+                               <div className="flex items-center gap-1 text-yellow-500 scale-75 origin-left">
+                                  {[...Array(5)].map((_, i) => <Star key={i} size={14} fill={i < r.rating ? "currentColor" : "none"} />)}
                                </div>
                             </div>
                           </div>
-                          <p className="text-sm italic opacity-70 leading-relaxed">"{r.comment}"</p>
-                        </div>
+                          <p className="text-sm opacity-60 leading-relaxed font-light">{r.comment}</p>
+                        </motion.div>
                       )) : (
-                        <p className="opacity-30 italic text-sm text-center py-6">No reviews yet. Be the first!</p>
+                        <p className="text-center opacity-30 py-10 font-serif italic">{lang === 'EN' ? "Be the first to share your thoughts..." : "كن أول من يشارك رأيه..."}</p>
                       )}
                     </div>
 
                     {user && (
-                      <div className="space-y-4">
+                      <div className="p-8 glass rounded-[40px] bg-black/5 dark:bg-white/5 border-none">
+                        <h4 className="text-xs font-black uppercase underline mb-6 tracking-widest">{lang === 'EN' ? "WRITE A REVIEW" : "اكتب تقييماً"}</h4>
+                        <div className="flex items-center gap-2 mb-6">
+                           {[1,2,3,4,5].map(star => (
+                             <button key={star} onClick={() => setRating(star)} className={`p-1 transition-all ${rating >= star ? 'text-yellow-500' : 'opacity-20 hover:opacity-100 hover:text-yellow-500'}`}>
+                               <Star size={24} fill={rating >= star ? "currentColor" : "none"} />
+                             </button>
+                           ))}
+                        </div>
                         <textarea 
-                          id="review-comment"
-                          className="glass-input min-h-[100px] py-4" 
-                          placeholder={lang === 'AR' ? "أضف بضعة كلمات..." : "Add your thoughts..."} 
+                          placeholder={lang === 'AR' ? 'شاركنا برأيك عن المنتج' : 'Share your thoughts about this masterpiece'} 
+                          value={comment} 
+                          onChange={(e) => setComment(e.target.value)}
+                          className="w-full bg-white/10 dark:bg-black/20 border-none rounded-[24px] p-6 text-sm mb-6 min-h-[120px] outline-none placeholder:opacity-40"
                         />
-                        <button 
-                          onClick={() => {
-                            const val = (document.getElementById('review-comment') as HTMLTextAreaElement).value;
-                            if (val) {
-                              addReview(selectedProduct.id, 5, val);
-                              (document.getElementById('review-comment') as HTMLTextAreaElement).value = '';
-                            }
-                          }}
-                          className="glass-btn w-full bg-accent-pink text-white py-4 font-bold uppercase tracking-widest text-xs"
-                        >
-                          {t('ADD_REVIEW')}
-                        </button>
+                        <button onClick={() => { addReview(selectedProduct.id, rating, comment); setComment(''); }} className="px-10 py-4 bg-white text-black dark:bg-white dark:text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all">Submit Review</button>
                       </div>
                     )}
                   </div>
-                  <button onClick={() => { addToCart(selectedProduct); setSelectedProduct(null); }} className="w-full py-6 glass bg-white text-black rounded-3xl font-black uppercase tracking-[4px] hover:bg-white/90 shadow-2xl transition-all flex items-center justify-center gap-4">
-                    <ShoppingBag /> {t('ADDED_TO_CART')}
-                  </button>
-                </div>
                </div>
             </motion.div>
           </div>
