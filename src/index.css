@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;900&family=Cormorant+Garamond:ital,wght@1,300;1,600&family=JetBrains+Mono:wght@400;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-glass: rgba(255, 255, 255, 0.05);
+  --color-glass-border: rgba(255, 255, 255, 0.1);
+  --color-accent-pink: #ff1b6b;
+  --color-accent-green: #00ff88;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-serif: 'Cormorant Garamond', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+@layer base {
+  body {
+    @apply min-h-screen m-0 p-0 font-sans antialiased selection:bg-accent-pink selection:text-white;
+    transition: background-color 0.8s cubic-bezier(0.4, 0, 0.2, 1), color 0.8s ease;
+  }
+  
+  body.dark-mode {
+    background-color: #030303;
+    color: #ffffff;
+  }
+  
+  body.light-mode {
+    background-color: #fffafa;
+    color: #1a1a1a;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply backdrop-blur-[40px] border border-white/10 rounded-[48px] shadow-2xl;
+    background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
+  }
+
+  .glass-input {
+    @apply w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm outline-none focus:border-accent-pink/50 transition-all placeholder:opacity-30;
+  }
+
+  .glass-btn {
+    @apply relative overflow-hidden px-8 py-4 rounded-2xl font-black uppercase tracking-[2px] cursor-pointer transition-all duration-300 active:scale-95;
+  }
+}
+
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 27, 107, 0.2); border-radius: 10px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 27, 107, 0.5); }
