@@ -317,7 +317,7 @@ export default function App() {
     const unsubscribeSettings = onSnapshot(doc(db, 'settings', 'global'), {
       next: (docSnap) => {
         if (docSnap.exists()) {
-          setSettings(docSnap.data() as Settings);
+          setSettings(prev => ({ ...prev, ...docSnap.data() }));
         }
       },
       error: (err) => {
@@ -845,21 +845,21 @@ export default function App() {
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <label className="text-[10px] font-bold tracking-widest uppercase opacity-50">Title (EN)</label>
-                            <input type="text" className="glass-input !bg-white/5 !text-white" value={newProduct.titleEN} onChange={e => setNewProduct({...newProduct, titleEN: e.target.value})} placeholder="English" />
+                            <input type="text" className="glass-input !bg-white/5 !text-white" value={newProduct.titleEN || ''} onChange={e => setNewProduct({...newProduct, titleEN: e.target.value})} placeholder="English" />
                           </div>
                           <div className="space-y-2">
                             <label className="text-[10px] font-bold tracking-widest uppercase opacity-50">العنوان (AR)</label>
-                            <input type="text" className="glass-input !bg-white/5 !text-white" value={newProduct.titleAR} onChange={e => setNewProduct({...newProduct, titleAR: e.target.value})} placeholder="العربية" />
+                            <input type="text" className="glass-input !bg-white/5 !text-white" value={newProduct.titleAR || ''} onChange={e => setNewProduct({...newProduct, titleAR: e.target.value})} placeholder="العربية" />
                           </div>
                         </div>
                         <div className="grid grid-cols-1 gap-4">
                           <div className="space-y-2">
                             <label className="text-[10px] font-bold tracking-widest uppercase opacity-50">Description (EN)</label>
-                            <textarea className="glass-input !bg-white/5 !text-white h-24 py-4" value={newProduct.descEN} onChange={e => setNewProduct({...newProduct, descEN: e.target.value})} placeholder="Exclusive Summer Collection Details..." />
+                            <textarea className="glass-input !bg-white/5 !text-white h-24 py-4" value={newProduct.descEN || ''} onChange={e => setNewProduct({...newProduct, descEN: e.target.value})} placeholder="Exclusive Summer Collection Details..." />
                           </div>
                           <div className="space-y-2">
                             <label className="text-[10px] font-bold tracking-widest uppercase opacity-50">الوصف (AR)</label>
-                            <textarea className="glass-input !bg-white/5 !text-white h-24 py-4" value={newProduct.descAR} onChange={e => setNewProduct({...newProduct, descAR: e.target.value})} placeholder="تفاصيل المجموعة الصيفية الحصرية..." />
+                            <textarea className="glass-input !bg-white/5 !text-white h-24 py-4" value={newProduct.descAR || ''} onChange={e => setNewProduct({...newProduct, descAR: e.target.value})} placeholder="تفاصيل المجموعة الصيفية الحصرية..." />
                           </div>
                         </div>
                       </div>
@@ -868,21 +868,21 @@ export default function App() {
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <label className="text-[10px] font-bold tracking-widest uppercase opacity-50">Price</label>
-                            <input type="number" className="glass-input !bg-white/5 !text-white" value={newProduct.price} onChange={e => setNewProduct({...newProduct, price: e.target.value})} placeholder="0.00" />
+                            <input type="number" className="glass-input !bg-white/5 !text-white" value={newProduct.price || ''} onChange={e => setNewProduct({...newProduct, price: e.target.value})} placeholder="0.00" />
                           </div>
                           <div className="space-y-2">
                              <label className="text-[10px] font-bold tracking-widest uppercase opacity-50">{t('STOCK')}</label>
-                             <input type="number" className="glass-input !bg-white/5 !text-white" value={newProduct.stock} onChange={e => setNewProduct({...newProduct, stock: e.target.value})} placeholder="10" />
+                             <input type="number" className="glass-input !bg-white/5 !text-white" value={newProduct.stock || ''} onChange={e => setNewProduct({...newProduct, stock: e.target.value})} placeholder="10" />
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                            <div className="space-y-2">
                             <label className="text-[10px] font-bold tracking-widest uppercase opacity-50">Old Price</label>
-                            <input type="number" className="glass-input !bg-white/5 !text-white" value={newProduct.oldPrice} onChange={e => setNewProduct({...newProduct, oldPrice: e.target.value})} placeholder="0.00" />
+                            <input type="number" className="glass-input !bg-white/5 !text-white" value={newProduct.oldPrice || ''} onChange={e => setNewProduct({...newProduct, oldPrice: e.target.value})} placeholder="0.00" />
                           </div>
                           <div className="space-y-2">
                             <label className="text-[10px] font-bold tracking-widest uppercase opacity-50">Category (EN)</label>
-                            <input type="text" className="glass-input !bg-white/5 !text-white" value={newProduct.catEN} onChange={e => setNewProduct({...newProduct, catEN: e.target.value})} placeholder="e.g. Dresses" />
+                            <input type="text" className="glass-input !bg-white/5 !text-white" value={newProduct.catEN || ''} onChange={e => setNewProduct({...newProduct, catEN: e.target.value})} placeholder="e.g. Dresses" />
                           </div>
                         </div>
                         <div className="space-y-4">
@@ -968,7 +968,7 @@ export default function App() {
                                 </div>
                               </td>
                               <td className="py-4">
-                                <select value={order.status} onChange={async (e) => await updateDoc(doc(db, 'orders', order.id), { status: e.target.value })} className="bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-[10px] text-white outline-none">
+                                <select value={order.status || 'pending'} onChange={async (e) => await updateDoc(doc(db, 'orders', order.id), { status: e.target.value })} className="bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-[10px] text-white outline-none">
                                   <option value="pending" className="bg-gray-900">Pending</option>
                                   <option value="completed" className="bg-gray-900">Completed</option>
                                   <option value="cancelled" className="bg-gray-900">Cancelled</option>
@@ -996,15 +996,15 @@ export default function App() {
                         <div className="space-y-4">
                           <div className="space-y-2">
                             <label className="text-[10px] font-bold uppercase opacity-50">Site Name</label>
-                            <input type="text" className="glass-input !bg-white/5 !text-white" value={settings.siteName} onChange={e => setSettings({...settings, siteName: e.target.value})} />
+                            <input type="text" className="glass-input !bg-white/5 !text-white" value={settings.siteName || ''} onChange={e => setSettings({...settings, siteName: e.target.value})} />
                           </div>
                           <div className="space-y-2">
                             <label className="text-[10px] font-bold uppercase opacity-50">Hero Image URL</label>
-                            <input type="text" className="glass-input !bg-white/5 !text-white" value={settings.heroImage} onChange={e => setSettings({...settings, heroImage: e.target.value})} />
+                            <input type="text" className="glass-input !bg-white/5 !text-white" value={settings.heroImage || ''} onChange={e => setSettings({...settings, heroImage: e.target.value})} />
                           </div>
                           <div className="space-y-2">
                             <label className="text-[10px] font-bold uppercase opacity-50">Default Shipping Fee (EGP)</label>
-                            <input type="number" className="glass-input !bg-white/5 !text-white" value={settings.shippingFee} onChange={e => setSettings({...settings, shippingFee: parseInt(e.target.value)})} />
+                            <input type="number" className="glass-input !bg-white/5 !text-white" value={settings.shippingFee ?? ''} onChange={e => setSettings({...settings, shippingFee: parseInt(e.target.value) || 0})} />
                           </div>
                         </div>
                       </div>
@@ -1013,11 +1013,11 @@ export default function App() {
                         <h3 className="text-xl font-bold italic">Hero Content</h3>
                         <div className="space-y-4">
                           <div className="grid grid-cols-2 gap-2">
-                            <input type="text" className="glass-input !bg-white/5 !text-white text-xs" value={settings.heroTitle.EN} onChange={e => setSettings({...settings, heroTitle: {...settings.heroTitle, EN: e.target.value}})} placeholder="Title EN" />
-                            <input type="text" className="glass-input !bg-white/5 !text-white text-xs" value={settings.heroTitle.AR} onChange={e => setSettings({...settings, heroTitle: {...settings.heroTitle, AR: e.target.value}})} placeholder="العنوان بالعربية" />
+                            <input type="text" className="glass-input !bg-white/5 !text-white text-xs" value={settings.heroTitle?.EN || ''} onChange={e => setSettings({...settings, heroTitle: {...settings.heroTitle, EN: e.target.value}})} placeholder="Title EN" />
+                            <input type="text" className="glass-input !bg-white/5 !text-white text-xs" value={settings.heroTitle?.AR || ''} onChange={e => setSettings({...settings, heroTitle: {...settings.heroTitle, AR: e.target.value}})} placeholder="العنوان بالعربية" />
                           </div>
-                          <textarea className="glass-input !bg-white/5 !text-white text-xs h-20" value={settings.heroDesc.AR} onChange={e => setSettings({...settings, heroDesc: {...settings.heroDesc, AR: e.target.value}})} placeholder="الوصف بالعربية" />
-                          <textarea className="glass-input !bg-white/5 !text-white text-xs h-20" value={settings.heroDesc.EN} onChange={e => setSettings({...settings, heroDesc: {...settings.heroDesc, EN: e.target.value}})} placeholder="Desc EN" />
+                          <textarea className="glass-input !bg-white/5 !text-white text-xs h-20" value={settings.heroDesc?.AR || ''} onChange={e => setSettings({...settings, heroDesc: {...settings.heroDesc, AR: e.target.value}})} placeholder="الوصف بالعربية" />
+                          <textarea className="glass-input !bg-white/5 !text-white text-xs h-20" value={settings.heroDesc?.EN || ''} onChange={e => setSettings({...settings, heroDesc: {...settings.heroDesc, EN: e.target.value}})} placeholder="Desc EN" />
                         </div>
                       </div>
                     </div>
@@ -1028,7 +1028,7 @@ export default function App() {
                         {['facebook', 'instagram', 'tiktok', 'whatsapp'].map(s => (
                           <div key={s} className="space-y-1">
                             <label className="text-[9px] font-bold uppercase opacity-50">{s}</label>
-                            <input type="text" className="glass-input !bg-white/5 !text-white text-xs" value={(settings as any)[s]} onChange={e => setSettings({...settings, [s]: e.target.value})} />
+                            <input type="text" className="glass-input !bg-white/5 !text-white text-xs" value={(settings as any)[s] || ''} onChange={e => setSettings({...settings, [s]: e.target.value})} />
                           </div>
                         ))}
                       </div>
@@ -1384,10 +1384,10 @@ export default function App() {
                     
                     <div className="mt-12 space-y-4 p-8 glass rounded-[40px] bg-black/5 dark:bg-white/5">
                         <h4 className="text-sm font-black uppercase tracking-widest border-b border-black/5 pb-4 mb-4">{lang === 'AR' ? 'بيانات الشحن' : 'Shipping Details'}</h4>
-                        <input className="glass-input !bg-white/50 text-sm" placeholder={lang === 'AR' ? 'العنوان بالتفصيل' : 'Detailed Address'} value={checkoutForm.address} onChange={e => setCheckoutForm({...checkoutForm, address: e.target.value})} />
+                        <input className="glass-input !bg-white/50 text-sm" placeholder={lang === 'AR' ? 'العنوان بالتفصيل' : 'Detailed Address'} value={checkoutForm.address || ''} onChange={e => setCheckoutForm({...checkoutForm, address: e.target.value})} />
                         <div className="grid grid-cols-2 gap-4">
-                          <input className="glass-input !bg-white/50 text-sm" placeholder={lang === 'AR' ? 'رقم الهاتف' : 'Phone'} value={checkoutForm.phone} onChange={e => setCheckoutForm({...checkoutForm, phone: e.target.value})} />
-                          <input className="glass-input !bg-white/50 text-sm" placeholder={lang === 'AR' ? 'رقم احتياطي' : 'Backup Phone'} value={checkoutForm.phone2} onChange={e => setCheckoutForm({...checkoutForm, phone2: e.target.value})} />
+                          <input className="glass-input !bg-white/50 text-sm" placeholder={lang === 'AR' ? 'رقم الهاتف' : 'Phone'} value={checkoutForm.phone || ''} onChange={e => setCheckoutForm({...checkoutForm, phone: e.target.value})} />
+                          <input className="glass-input !bg-white/50 text-sm" placeholder={lang === 'AR' ? 'رقم احتياطي' : 'Backup Phone'} value={checkoutForm.phone2 || ''} onChange={e => setCheckoutForm({...checkoutForm, phone2: e.target.value})} />
                         </div>
                         
                         <div className="flex items-center gap-3 py-2">
