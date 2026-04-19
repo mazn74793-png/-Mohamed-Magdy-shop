@@ -26,11 +26,11 @@ service cloud.firestore {
     function isValidOrder(data) {
       return data.keys().hasAll(['customerName', 'customerEmail', 'customerPhone', 'address', 'paymentMethod', 'items', 'total', 'shippingFee', 'status', 'createdAt'])
         && data.customerName is string
-        && data.customerEmail == request.auth.token.email
+        && (data.customerEmail == request.auth.token.email || isAdmin())
         && data.paymentMethod in ['insta', 'cash']
         && data.items is list
         && data.total is number
-        && data.status in ['pending', 'completed', 'cancelled']
+        && data.status in ['pending', 'processing', 'shipped', 'completed', 'cancelled']
         && data.createdAt is timestamp;
     }
 
@@ -38,6 +38,15 @@ service cloud.firestore {
       return data.keys().hasAll(['userName', 'rating', 'comment', 'createdAt', 'userId'])
         && data.userId == request.auth.uid
         && data.rating is number && data.rating >= 1 && data.rating <= 5;
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['userId', 'title', 'message', 'read', 'createdAt'])
+        && data.userId is string
+        && data.title is map
+        && data.message is map
+        && data.read is bool
+        && data.createdAt is timestamp;
     }
 
     // --- Collection Matches ---
@@ -71,6 +80,14 @@ service cloud.firestore {
 
     match /carts/{cartId} {
       allow read, write: if isOwner(cartId);
+    }
+
+    match /notifications/{notificationId} {
+      allow list, get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isAdmin() && isValidNotification(incoming());
+      allow update: if (isSignedIn() && resource.data.userId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['read']))
+                    || isAdmin();
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
 
     match /test/connection {

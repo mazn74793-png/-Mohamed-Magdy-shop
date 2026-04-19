@@ -41,10 +41,26 @@
         "customerEmail": { "type": "string" },
         "items": { "type": "array" },
         "total": { "type": "number" },
-        "status": { "type": "string", "enum": ["pending", "completed", "cancelled"] },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "status": { "type": "string", "enum": ["pending", "processing", "shipped", "completed", "cancelled"] },
+        "adminMessage": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["customerName", "customerEmail", "items", "total", "status", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "A notification for a user about their order.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "object" },
+        "message": { "type": "object" },
+        "orderId": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "message", "read", "createdAt"]
     },
     "Settings": {
       "title": "Settings",
@@ -70,6 +86,10 @@
     "/settings/{settingId}": {
       "schema": "Settings",
       "description": "Application settings (usually a single 'global' doc)."
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "Collection of user notifications."
     }
   }
 }

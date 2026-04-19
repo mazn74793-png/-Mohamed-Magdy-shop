@@ -5,13 +5,13 @@
 
 /// <reference types="vite/client" />
 
-import { ShoppingBag, LayoutDashboard, PlusCircle, Activity, Box, Search, User, Trash2, X, Globe, CheckCircle2, AlertCircle, Edit2, Save, LogOut, Sun, Moon, Smartphone, MessageCircle, BarChart3, TrendingUp, Users, Calendar, ArrowRight, Star, Heart, Share2, Upload, Trash, Menu, ArrowLeft, Filter, Check, Maximize, CreditCard } from 'lucide-react';
+import { ShoppingBag, LayoutDashboard, PlusCircle, Activity, Box, Search, User, Trash2, X, Globe, CheckCircle2, AlertCircle, Edit2, Save, LogOut, Sun, Moon, Smartphone, MessageCircle, BarChart3, TrendingUp, Users, Calendar, ArrowRight, Star, Heart, Share2, Upload, Trash, Menu, ArrowLeft, Filter, Check, Maximize, CreditCard, Bell, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, getDocFromServer, setDoc } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, getDocFromServer, setDoc, where, increment } from 'firebase/firestore';
 import firebaseConfigLocal from '../firebase-applet-config.json';
 
 // --- Initialization ---
@@ -54,6 +54,7 @@ interface OrderItem {
 
 interface Order {
   id: string;
+  userId?: string;
   customerName: string;
   customerEmail: string;
   customerPhone: string;
@@ -64,7 +65,19 @@ interface Order {
   items: OrderItem[];
   total: number;
   shippingFee: number;
-  status: 'pending' | 'completed' | 'cancelled';
+  status: 'pending' | 'processing' | 'shipped' | 'completed' | 'cancelled';
+  createdAt: any;
+  updatedAt?: any;
+  adminMessage?: string;
+}
+
+interface Notification {
+  id: string;
+  userId: string;
+  orderId?: string;
+  title: { EN: string; AR: string };
+  message: { EN: string; AR: string };
+  read: boolean;
   createdAt: any;
 }
 
@@ -157,8 +170,15 @@ const TRANSLATIONS = {
   CUSTOMER: { EN: "Customer", AR: "العميل" },
   ITEMS: { EN: "Items", AR: "المنتجات" },
   PENDING: { EN: "Pending", AR: "قيد الانتظار" },
+   PROCESSING: { EN: "Processing", AR: "جاري التجهيز" },
+  SHIPPED: { EN: "Shipped", AR: "جاري الشحن" },
   COMPLETED: { EN: "Completed", AR: "مكتمل" },
   CANCELLED: { EN: "Cancelled", AR: "ملغي" },
+  ORDER_MESSAGES: { EN: "Order Messages", AR: "رسائل الطلب" },
+  SEND_MSG: { EN: "Send Notification", AR: "ارسال إشعار" },
+  DELETE_ORDER: { EN: "Delete Order", AR: "حذف الطلب" },
+  NOTIFICATIONS: { EN: "Notifications", AR: "الإشعارات" },
+  MARK_READ: { EN: "Mark as Read", AR: "تحديد كمقروء" },
   TAB_PRODUCTS: { EN: "Products", AR: "المنتجات" },
   TAB_ORDERS: { EN: "Orders", AR: "الطلبات" },
   TAB_SETTINGS: { EN: "Settings", AR: "الإعدادات" },
@@ -191,9 +211,11 @@ export default function App() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [adminTab, setAdminTab] = useState<'PRODUCTS' | 'ORDERS' | 'SETTINGS' | 'DASHBOARD'>('DASHBOARD');
   const [orders, setOrders] = useState<Order[]>([]);
+  const [userOrders, setUserOrders] = useState<Order[]>([]);
   const [settings, setSettings] = useState<Settings>({ 
     facebook: '', 
     instagram: '', 
@@ -333,6 +355,32 @@ const getL = (obj: any, lang: Language = 'AR') => {
   }, [cart]);
 
   useEffect(() => {
+    if (!user) {
+      setNotifications([]);
+      return;
+    }
+    const q = query(collection(db, 'notifications'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setNotifications(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)));
+    }, (err) => {
+      console.error("Notifications Listener Error:", err);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      setUserOrders([]);
+      return;
+    }
+    const q = query(collection(db, 'orders'), where('customerEmail', '==', user.email), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setUserOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)));
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
     const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, {
       next: (snapshot) => {
@@ -359,7 +407,21 @@ const getL = (obj: any, lang: Language = 'AR') => {
     });
 
     return () => unsubscribeSettings();
-  }, []);
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) {
+      setOrders([]);
+      return;
+    }
+    const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)));
+    }, (err) => {
+      console.error("Orders Listener Error:", err);
+    });
+    return () => unsubscribe();
+  }, [isAdmin]);
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -459,6 +521,7 @@ const getL = (obj: any, lang: Language = 'AR') => {
       }
 
       const orderData = {
+        userId: user.uid,
         customerName: user.displayName || "Unknown",
         customerEmail: user.email,
         customerPhone: checkoutForm.phone,
@@ -485,6 +548,80 @@ const getL = (obj: any, lang: Language = 'AR') => {
     } catch (e: any) {
       console.error(e);
       notify({ EN: "Checkout failed: " + e.message, AR: "فشل إتمام الشراء: " + (e.message.startsWith('{') ? "خطأ في الصلاحيات" : e.message) }, 'error');
+    }
+  };
+
+  const deleteOrder = async (orderId: string) => {
+    if (!isAdmin) return;
+    if (!confirm(lang === 'AR' ? 'هل أنت متأكد من حذف هذا الطلب؟' : 'Are you sure you want to delete this order?')) return;
+    try {
+      await deleteDoc(doc(db, 'orders', orderId)).catch(e => handleFirestoreError(e, 'delete', `orders/${orderId}`, user));
+      notify({ EN: "Order deleted", AR: "تم حذف الطلب" });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const updateOrderStatus = async (order: Order, newStatus: string) => {
+    if (!isAdmin) return;
+    try {
+      await updateDoc(doc(db, 'orders', order.id), { 
+        status: newStatus,
+        updatedAt: serverTimestamp()
+      }).catch(e => handleFirestoreError(e, 'update', `orders/${order.id}`, user));
+
+      // Create notification for user
+      if (order.userId) {
+        const statuses: any = {
+          'processing': { EN: 'Preparing Order', AR: 'جاري تجهيز طلبك' },
+          'shipped': { EN: 'Order Shipped', AR: 'تم شحن طلبك' },
+          'completed': { EN: 'Order Completed', AR: 'تم اكتمال الطلب' },
+          'cancelled': { EN: 'Order Cancelled', AR: 'تم إلغاء الطلب' }
+        };
+        
+        if (statuses[newStatus]) {
+          await addDoc(collection(db, 'notifications'), {
+            userId: order.userId,
+            orderId: order.id,
+            title: statuses[newStatus],
+            message: { 
+              EN: `Your order #${order.id.slice(-5)} is now ${newStatus}.`,
+              AR: `طلبك رقم #${order.id.slice(-5)} أصبح الآن ${t(newStatus.toUpperCase())}.`
+            },
+            read: false,
+            createdAt: serverTimestamp()
+          }).catch(e => handleFirestoreError(e, 'create', 'notifications', user));
+        }
+      }
+      
+      notify({ EN: "Status updated", AR: "تم تحديث الحالة" });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const sendOrderMessage = async (order: Order, msg: string) => {
+    if (!isAdmin || !msg.trim()) return;
+    try {
+      await updateDoc(doc(db, 'orders', order.id), { 
+        adminMessage: msg,
+        updatedAt: serverTimestamp()
+      }).catch(e => handleFirestoreError(e, 'update', `orders/${order.id}`, user));
+
+      if (order.userId) {
+        await addDoc(collection(db, 'notifications'), {
+          userId: order.userId,
+          orderId: order.id,
+          title: { EN: "Message from Eleven:Eleven", AR: "رسالة من Eleven:Eleven" },
+          message: { EN: msg, AR: msg },
+          read: false,
+          createdAt: serverTimestamp()
+        }).catch(e => handleFirestoreError(e, 'create', 'notifications', user));
+      }
+      
+      notify({ EN: "Message sent", AR: "تم إرسال الرسالة" });
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -728,7 +865,14 @@ const getL = (obj: any, lang: Language = 'AR') => {
 
           <nav className="hidden xl:flex gap-10 text-[11px] font-bold tracking-[3px] opacity-70">
             {['COLLECTIONS', 'NEW_ARRIVALS', 'SALE', 'ACCOUNT'].map((key) => (
-              <button key={key} onClick={() => key === 'ACCOUNT' ? handleLogin() : setActiveTab(key)} className={`cursor-pointer transition-all hover:opacity-100 relative group ${activeTab === key ? 'opacity-100' : 'opacity-40'}`}>
+              <button key={key} onClick={() => {
+                if (key === 'ACCOUNT') {
+                  if (!user) handleLogin();
+                  else setActiveTab('ACCOUNT');
+                } else {
+                  setActiveTab(key);
+                }
+              }} className={`cursor-pointer transition-all hover:opacity-100 relative group ${activeTab === key ? 'opacity-100' : 'opacity-40'}`}>
                 {t(key as keyof typeof TRANSLATIONS)}
                 <span className={`absolute -bottom-2 left-0 w-0 h-0.5 bg-white transition-all group-hover:w-full ${activeTab === key ? 'w-full' : ''}`} />
               </button>
@@ -747,6 +891,11 @@ const getL = (obj: any, lang: Language = 'AR') => {
             <div className="relative group hidden sm:block">
               <Search size={18} className={`absolute ${lang === 'AR' ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 opacity-30`} />
               <input type="text" placeholder={t('SEARCH')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className={`glass rounded-full py-2.5 w-40 lg:w-56 focus:w-72 transition-all outline-none border-none text-sm px-12 ${theme === 'dark' ? 'bg-white/5 text-white' : 'bg-black/5 text-black'}`} />
+            </div>
+
+            <div className="relative">
+              <Bell size={24} className={`cursor-pointer transition-all ${isNotificationsOpen ? 'text-accent-pink opacity-100' : 'opacity-70 hover:opacity-100'}`} onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} />
+              {notifications.filter(n => !n.read).length > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-accent-pink rounded-full border-2 border-black" />}
             </div>
 
             <div className="relative">
@@ -1006,16 +1155,27 @@ const getL = (obj: any, lang: Language = 'AR') => {
                                 </div>
                               </td>
                               <td className="py-4">
-                                <select value={order.status || 'pending'} onChange={async (e) => await updateDoc(doc(db, 'orders', order.id), { status: e.target.value })} className="bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-[10px] text-white outline-none">
+                                <select 
+                                  value={order.status || 'pending'} 
+                                  onChange={(e) => updateOrderStatus(order, e.target.value)} 
+                                  className="bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-[10px] text-white outline-none"
+                                >
                                   <option value="pending" className="bg-gray-900">Pending</option>
+                                  <option value="processing" className="bg-gray-900">Processing</option>
+                                  <option value="shipped" className="bg-gray-900">Shipped</option>
                                   <option value="completed" className="bg-gray-900">Completed</option>
                                   <option value="cancelled" className="bg-gray-900">Cancelled</option>
                                 </select>
                               </td>
                               <td className="py-4">
-                                <div className="flex gap-2">
+                                <div className="flex items-center gap-2">
                                   <a href={`https://wa.me/${order.customerPhone}`} target="_blank" rel="noreferrer" className="p-2 glass bg-white/10 text-accent-pink rounded-lg hover:scale-110 transition-transform"><MessageCircle size={14} /></a>
-                                  {order.locationUrl && <a href={order.locationUrl} target="_blank" rel="noreferrer" className="p-2 glass bg-white/10 text-accent-pink rounded-lg hover:scale-110 transition-transform"><Globe size={14} /></a>}
+                                  {order.locationUrl && <a href={order.locationUrl} target="_blank" rel="noreferrer" className="p-2 glass bg-white/10 text-green-400 rounded-lg hover:scale-110 transition-transform"><Globe size={14} /></a>}
+                                  <button onClick={() => {
+                                    const msg = prompt(lang === 'AR' ? 'اكتب الرسالة للعميل:' : 'Enter message for customer:');
+                                    if (msg) sendOrderMessage(order, msg);
+                                  }} className="p-2 glass bg-white/10 text-blue-400 rounded-lg hover:scale-110 transition-transform"><Send size={14} /></button>
+                                  <button onClick={() => deleteOrder(order.id)} className="p-2 glass bg-white/10 text-red-400 rounded-lg hover:scale-110 transition-transform"><Trash2 size={14} /></button>
                                 </div>
                               </td>
                             </tr>
@@ -1109,7 +1269,93 @@ const getL = (obj: any, lang: Language = 'AR') => {
         {/* Product Grid Grouped by Category */}
         <main className="space-y-32">
           <AnimatePresence mode="popLayout">
-            {filtered.length === 0 ? (
+            {activeTab === 'ACCOUNT' && user && (
+              <motion.section 
+                initial={{ opacity: 0, y: 20 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                className="space-y-16 py-10"
+              >
+                <div className="flex flex-col md:flex-row items-center gap-10 md:gap-20 p-10 sm:p-16 glass rounded-[64px] bg-white/5 border-white/10 relative overflow-hidden">
+                  <div className="relative z-10 w-32 h-32 rounded-full overflow-hidden border-4 border-accent-pink/30 shadow-4xl shadow-pink-500/20">
+                    <img src={user.photoURL || ''} alt="" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="relative z-10 text-center md:text-left">
+                    <h2 className="text-4xl sm:text-6xl font-black mb-4 tracking-tighter">{user.displayName}</h2>
+                    <p className="opacity-50 text-sm font-bold uppercase tracking-[4px]">{user.email}</p>
+                    <div className="mt-8 flex flex-wrap justify-center md:justify-start gap-4">
+                      {isAdmin && <button onClick={() => setIsAdminPanelOpen(true)} className="px-8 py-3 glass bg-accent-green/20 text-accent-green rounded-full text-[10px] font-black uppercase tracking-[3px] hover:scale-105 transition-all">{t('TAB_DASHBOARD')}</button>}
+                      <button onClick={handleLogout} className="px-8 py-3 glass bg-red-500/10 text-red-400 rounded-full text-[10px] font-black uppercase tracking-[3px] hover:scale-105 transition-all">{t('LOGOUT')}</button>
+                    </div>
+                  </div>
+                  <div className="absolute top-0 right-0 w-80 h-80 bg-accent-pink/5 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2" />
+                </div>
+
+                <div className="space-y-10">
+                  <div className="flex items-center gap-6">
+                    <h2 className="text-3xl font-black uppercase tracking-[4px]">{t('TAB_ORDERS')}</h2>
+                    <div className="flex-1 h-px bg-current opacity-10" />
+                    <span className="text-xs font-bold opacity-30">{userOrders.length} {t('TAB_ORDERS')}</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-6">
+                    {userOrders.length === 0 ? (
+                      <div className="glass p-20 rounded-[48px] text-center bg-white/5 border-white/10 opacity-30 italic">
+                        <p>{lang === 'AR' ? 'لا توجد طلبات سابقة' : 'No previous orders found'}</p>
+                      </div>
+                    ) : (
+                      userOrders.map(order => (
+                        <motion.div 
+                          key={order.id}
+                          layout
+                          className="glass p-8 sm:p-10 rounded-[40px] bg-white/5 border-white/10 hover:border-accent-pink/20 transition-all group lg:flex items-center gap-10"
+                        >
+                          <div className="mb-6 lg:mb-0 lg:w-48 text-center lg:text-left">
+                            <p className="text-[10px] font-bold uppercase tracking-[3px] opacity-30 mb-2">{t('STATUS')}</p>
+                            <span className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[2px] ${
+                              order.status === 'pending' ? 'bg-orange-500/20 text-orange-400' :
+                              order.status === 'processing' ? 'bg-blue-500/20 text-blue-400' :
+                              order.status === 'shipped' ? 'bg-purple-500/20 text-purple-400' :
+                              order.status === 'completed' ? 'bg-accent-green/20 text-accent-green' : 'bg-red-500/20 text-red-500'
+                            }`}>
+                              {t(order.status?.toUpperCase())}
+                            </span>
+                          </div>
+
+                          <div className="flex-1 space-y-4">
+                            <div className="flex justify-between items-center">
+                              <p className="text-[10px] font-bold uppercase tracking-[3px] opacity-30">{lang === 'AR' ? 'رقم الطلب' : 'ORDER ID'}</p>
+                              <p className="text-[10px] font-bold opacity-30">{order.createdAt?.toDate ? order.createdAt.toDate().toLocaleDateString(lang === 'AR' ? 'ar-EG' : 'en-US') : ''}</p>
+                            </div>
+                            <p className="text-xl font-black truncate max-w-sm">#{order.id}</p>
+                            <div className="flex flex-wrap gap-2">
+                              {order.items.map((item, idx) => (
+                                <span key={idx} className="bg-white/5 px-4 py-2 rounded-xl text-[10px] font-bold">{getL(item.name)} (x{item.quantity})</span>
+                              ))}
+                            </div>
+                            {order.adminMessage && (
+                              <div className="mt-6 p-6 rounded-3xl bg-accent-pink/5 border border-accent-pink/20">
+                                <p className="text-[9px] font-black uppercase tracking-[3px] text-accent-pink mb-2">{t('ORDER_MESSAGES')}</p>
+                                <p className="text-xs font-medium leading-relaxed italic">"{order.adminMessage}"</p>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="mt-8 lg:mt-0 lg:w-48 text-center lg:text-right border-t lg:border-t-0 lg:border-l border-white/10 pt-8 lg:pt-0 lg:pl-10">
+                            <p className="text-[10px] font-bold uppercase tracking-[3px] opacity-30 mb-2">{t('TOTAL')}</p>
+                            <p className="text-3xl font-black text-accent-pink">{order.total.toLocaleString()} <span className="text-lg opacity-50 font-light">{t('EGP')}</span></p>
+                            <a href={`https://wa.me/${settings.whatsapp}?text=${encodeURIComponent(`${lang === 'AR' ? 'أهلاً، أود الاستفسار عن طلبي رقم' : 'Hi, I want to inquire about my order #'} ${order.id}`)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 mt-6 text-[10px] font-black uppercase tracking-[3px] text-accent-green hover:underline">
+                              <MessageCircle size={14} /> {t('CONTACT_US')}
+                            </a>
+                          </div>
+                        </motion.div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </motion.section>
+            )}
+
+            {activeTab !== 'ACCOUNT' && (filtered.length === 0 ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-20 opacity-30 gap-6">
                 <Search size={64} strokeWidth={1} />
                 <p className="text-xl font-light">{t('NO_PRODUCTS')}</p>
@@ -1158,7 +1404,7 @@ const getL = (obj: any, lang: Language = 'AR') => {
                   </div>
                 </section>
               ))
-            )}
+            ))}
           </AnimatePresence>
         </main>
 
@@ -1401,6 +1647,79 @@ const getL = (obj: any, lang: Language = 'AR') => {
               )}
             </AnimatePresence>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Notifications Sidebar */}
+      <AnimatePresence>
+        {isNotificationsOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              onClick={() => setIsNotificationsOpen(false)} 
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[250]" 
+            />
+            <motion.aside
+              initial={{ x: lang === 'AR' ? -600 : 600 }}
+              animate={{ x: 0 }}
+              exit={{ x: lang === 'AR' ? -600 : 600 }}
+              className={`fixed top-0 ${lang === 'AR' ? 'left-0' : 'right-0'} w-full sm:w-[450px] h-full ${theme === 'dark' ? 'bg-[#0a0a0c]' : 'bg-white'} z-[260] shadow-4xl flex flex-col border-white/10 ${lang === 'AR' ? 'border-r' : 'border-l'}`}
+              dir={lang === 'AR' ? 'rtl' : 'ltr'}
+            >
+              <div className="p-8 pb-4 flex items-center justify-between border-b border-black/5 dark:border-white/5">
+                <div className="flex items-center gap-4">
+                   <div className="p-3 bg-accent-pink/10 text-accent-pink rounded-2xl">
+                      <Bell size={24} />
+                   </div>
+                   <h3 className="text-2xl font-black uppercase tracking-tight">{t('NOTIFICATIONS')}</h3>
+                </div>
+                <button onClick={() => setIsNotificationsOpen(false)} className="p-3 bg-black/5 dark:bg-white/5 rounded-full hover:rotate-90 transition-all">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-4">
+                {notifications.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center opacity-30 italic">
+                    <p>{lang === 'AR' ? 'لا توجد إشعارات حالياً' : 'No notifications yet'}</p>
+                  </div>
+                ) : (
+                  notifications.map(notif => (
+                    <motion.div 
+                      key={notif.id}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className={`p-6 rounded-[32px] glass border transition-all ${notif.read ? 'bg-black/5 dark:bg-white/5 border-transparent' : 'bg-accent-pink/5 border-accent-pink/20 shadow-lg'}`}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-black text-[10px] uppercase tracking-wider text-accent-pink">{getL(notif.title, lang)}</h4>
+                        <span className="text-[9px] opacity-40 font-bold uppercase">{notif.createdAt?.toDate ? notif.createdAt.toDate().toLocaleDateString(lang === 'AR' ? 'ar-EG' : 'en-US') : ''}</span>
+                      </div>
+                      <p className="text-xs font-medium leading-relaxed opacity-80 mb-4">{getL(notif.message, lang)}</p>
+                      <div className="flex gap-2">
+                        {!notif.read && (
+                          <button 
+                            onClick={() => updateDoc(doc(db, 'notifications', notif.id), { read: true })}
+                            className="text-[9px] font-black uppercase tracking-widest text-accent-pink bg-accent-pink/10 px-4 py-2 rounded-full hover:bg-accent-pink/20 transition-all"
+                          >
+                            {t('MARK_READ')}
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => deleteDoc(doc(db, 'notifications', notif.id))}
+                          className="text-[9px] font-black uppercase tracking-widest opacity-40 hover:opacity-100 transition-all"
+                        >
+                          {lang === 'AR' ? 'حذف' : 'Delete'}
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))
+                )}
+              </div>
+            </motion.aside>
+          </>
         )}
       </AnimatePresence>
 
