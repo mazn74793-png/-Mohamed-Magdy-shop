@@ -1,80 +1,65 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default deny
+    // 0. Global Safety Net
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Helper functions
-    function isSignedIn() {
-      return request.auth != null;
-    }
+    // --- Helper Functions ---
+    function isSignedIn() { return request.auth != null; }
+    function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
+    function isAdmin() { return isVerified() && request.auth.token.email == 'motaem23y@gmail.com'; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
 
-    function isAdmin() {
-      return isSignedIn() && request.auth.token.email == 'motaem23y@gmail.com';
-    }
+    // --- Validation Blueprints ---
 
-    function isValidId(id) {
-       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
-    function incoming() {
-      return request.resource.data;
-    }
-
-    function existing() {
-      return resource.data;
-    }
-
-    // Validation helper for Product
     function isValidProduct(data) {
       return data.keys().hasAll(['name', 'price', 'updatedAt'])
-        && data.name is map
-        && data.price is number
-        && data.updatedAt is timestamp;
+        && data.name is map 
+        && data.price is number;
     }
 
-    // Validation helper for Order
     function isValidOrder(data) {
       return data.keys().hasAll(['customerName', 'customerEmail', 'customerPhone', 'address', 'paymentMethod', 'items', 'total', 'shippingFee', 'status', 'createdAt'])
-        && data.customerName is string && data.customerName.size() <= 200
-        && data.customerEmail is string && data.customerEmail.size() <= 200
-        && data.customerPhone is string && data.customerPhone.size() <= 32
-        && data.address is string && data.address.size() <= 1000
+        && data.customerName is string
+        && data.customerEmail == request.auth.token.email
         && data.paymentMethod in ['insta', 'cash']
-        && data.items is list && data.items.size() > 0
-        && data.total is number && data.total >= 0
-        && data.shippingFee is number && data.shippingFee >= 0
+        && data.items is list
+        && data.total is number
         && data.status in ['pending', 'completed', 'cancelled']
         && data.createdAt is timestamp;
     }
 
-    // Validation helper for Review
     function isValidReview(data) {
-      return data.keys().hasAll(['userName', 'rating', 'comment', 'createdAt'])
-        && data.userName is string && data.userName.size() <= 200
-        && data.rating is number && data.rating >= 1 && data.rating <= 5
-        && data.comment is string && data.comment.size() <= 1000
-        && data.createdAt is timestamp;
+      return data.keys().hasAll(['userName', 'rating', 'comment', 'createdAt', 'userId'])
+        && data.userId == request.auth.uid
+        && data.rating is number && data.rating >= 1 && data.rating <= 5;
     }
+
+    // --- Collection Matches ---
 
     match /products/{productId} {
       allow list, get: if true;
-      allow create, update: if isAdmin() && isValidProduct(incoming()) && incoming().updatedAt == request.time;
+      allow create: if isAdmin() && isValidProduct(incoming());
+      allow update: if isAdmin() 
+                    || (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['stock']));
       allow delete: if isAdmin();
 
       match /reviews/{reviewId} {
         allow list, get: if true;
-        allow create: if isSignedIn() && isValidReview(incoming()) && incoming().createdAt == request.time;
-        allow update, delete: if isAdmin();
+        allow create: if isVerified() && isValidReview(incoming());
+        allow update, delete: if isAdmin() || isOwner(existing().userId);
       }
     }
 
     match /orders/{orderId} {
-      allow list: if isAdmin();
-      allow get: if isAdmin() || (isSignedIn() && (resource.data.customerEmail == request.auth.token.email || resource.data.customerEmail == request.auth.email));
-      allow create: if isSignedIn() && isValidOrder(incoming()) && incoming().createdAt == request.time && incoming().status == 'pending';
+      allow list: if isAdmin() || (isSignedIn() && resource.data.customerEmail == request.auth.token.email);
+      allow get: if isAdmin() || (isSignedIn() && resource.data.customerEmail == request.auth.token.email);
+      allow create: if isVerified() && isValidOrder(incoming()) && incoming().status == 'pending';
       allow update: if isAdmin();
       allow delete: if isAdmin();
     }
@@ -85,7 +70,11 @@ service cloud.firestore {
     }
 
     match /carts/{cartId} {
-      allow read, write: if isSignedIn() && (cartId == request.auth.uid || (resource != null && resource.data.userId == request.auth.uid));
+      allow read, write: if isOwner(cartId);
+    }
+
+    match /test/connection {
+      allow get: if true;
     }
   }
 }

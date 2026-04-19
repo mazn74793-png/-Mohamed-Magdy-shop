@@ -239,16 +239,37 @@ export default function App() {
     if (!entry) return key;
     return entry[lang] || entry['EN'] || key;
   };
-  const isAdmin = user?.email === ADMIN_EMAIL;
+  const isAdmin = useMemo(() => {
+    return user && user.email === ADMIN_EMAIL && user.emailVerified;
+  }, [user]);
 
-  const getL = (obj: any) => {
-    if (!obj) return '';
-    if (typeof obj === 'string') return obj;
-    return obj[lang] || obj['EN'] || obj['AR'] || '';
-  };
+const handleFirestoreError = (error: any, operation: 'create' | 'update' | 'delete' | 'list' | 'get' | 'write', path: string | null = null, user: any = null) => {
+  if (error.code === 'permission-denied') {
+    const errorInfo = {
+      error: "Missing or insufficient permissions",
+      operationType: operation,
+      path: path,
+      authInfo: user ? {
+        userId: user.uid,
+        email: user.email,
+        emailVerified: user.emailVerified,
+        isAnonymous: user.isAnonymous,
+        providerInfo: user.providerData.map((p: any) => ({ providerId: p.providerId, displayName: p.displayName, email: p.email }))
+      } : 'No User'
+    };
+    throw new Error(JSON.stringify(errorInfo));
+  }
+  throw error;
+};
+
+const getL = (obj: any, lang: Language = 'AR') => {
+  if (!obj) return '';
+  if (typeof obj === 'string') return obj;
+  return obj[lang] || obj['EN'] || obj['AR'] || '';
+};
 
   const filtered = products.filter(p => {
-    const name = getL(p.name);
+    const name = getL(p.name, lang);
     const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase());
     if (!matchesSearch) return false;
     
@@ -288,10 +309,15 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, (u) => setUser(u));
     // Connection test
     const testConnection = async () => {
-      try { await getDocFromServer(doc(db, 'settings', 'global')); } 
-      catch (e: any) { 
-        if (e.code === 'permission-denied') {
-          console.warn("Public settings access denied - check rules.");
+      try { 
+        await getDocFromServer(doc(db, 'test', 'connection')); 
+      } catch (e: any) { 
+        if (e.message?.includes('the client is offline')) {
+          console.error("Firestore connectivity check failed: The client is offline. Please check your Firebase configuration or internet connection.");
+          notify({ EN: "Internet connection issues detected.", AR: "مشاكل في الاتصال بالإنترنت." }, 'error');
+        } else if (e.code === 'permission-denied') {
+          // This is expected if the room is public but the test doc isn't
+          console.log("Firestore Reachable (Permission Denied for test doc - expected)");
         }
       }
     };
@@ -450,7 +476,7 @@ export default function App() {
       const orderRef = doc(collection(db, 'orders'));
       batch.set(orderRef, orderData);
       
-      await batch.commit();
+      await batch.commit().catch(e => handleFirestoreError(e, 'write', 'checkout-batch', user));
 
       setCart([]);
       setIsCartOpen(false);
@@ -458,7 +484,7 @@ export default function App() {
       notify({ EN: "Order placed!", AR: "تم إرسال الطلب بنجاح!" });
     } catch (e: any) {
       console.error(e);
-      notify({ EN: e.message || "Checkout failed", AR: e.message || "فشل الدفع" }, 'error');
+      notify({ EN: "Checkout failed: " + e.message, AR: "فشل إتمام الشراء: " + (e.message.startsWith('{') ? "خطأ في الصلاحيات" : e.message) }, 'error');
     }
   };
 
@@ -479,11 +505,11 @@ export default function App() {
   const updateSettings = async () => {
     if (!isAdmin) return;
     try {
-      await setDoc(doc(db, 'settings', 'global'), settings);
+      await setDoc(doc(db, 'settings', 'global'), settings).catch(e => handleFirestoreError(e, 'write', 'settings/global', user));
       notify({ EN: "Settings saved!", AR: "تم حفظ الإعدادات بنجاح!" });
     } catch (e: any) {
       console.error(e);
-      notify({ EN: "Failed to save settings: " + e.message, AR: "فشل حفظ الإعدادات: " + e.message }, 'error');
+      notify({ EN: "Error: " + e.message, AR: "خطأ: " + (e.message.startsWith('{') ? "خطأ في الصلاحيات" : e.message) }, 'error');
     }
   };
 
@@ -632,19 +658,18 @@ export default function App() {
 
     try {
       if (isEditing) {
-        // Double check we have a valid ID
         if (typeof isEditing !== 'string') throw new Error("Invalid editing ID");
-        await updateDoc(doc(db, 'products', isEditing), productData);
+        await updateDoc(doc(db, 'products', isEditing), productData).catch(e => handleFirestoreError(e, 'update', `products/${isEditing}`, user));
         notify(TRANSLATIONS.PRODUCT_UPDATED);
       } else {
-        await addDoc(collection(db, 'products'), { ...productData, createdAt: serverTimestamp() });
+        await addDoc(collection(db, 'products'), { ...productData, createdAt: serverTimestamp() }).catch(e => handleFirestoreError(e, 'create', 'products', user));
         notify(TRANSLATIONS.PRODUCT_PUBLISHED);
       }
       setIsEditing(null);
       setNewProduct({ titleEN: '', titleAR: '', descEN: '', descAR: '', catEN: '', catAR: '', price: '', oldPrice: '', stock: '10', images: [], isNew: false, isSale: false });
     } catch (e: any) {
       console.error(e);
-      notify({ EN: "Failed: " + e.message, AR: "فشلت العملية: " + e.message }, 'error');
+      notify({ EN: "Failed: " + e.message, AR: "فشلت العملية: " + (e.message.startsWith('{') ? "خطأ في الصلاحيات" : e.message) }, 'error');
     }
   };
 
@@ -690,9 +715,15 @@ export default function App() {
       <div className="w-full max-w-[1400px] mx-auto p-4 sm:p-8 md:p-12 relative z-10">
         {/* Header */}
         <header className="flex flex-wrap items-center justify-between mb-8 sm:mb-16 gap-6 glass p-6 sm:px-10 rounded-[32px] sm:rounded-[48px] bg-white/5 border-white/10">
-          <div className="text-2xl sm:text-3xl font-black tracking-[6px] uppercase logo flex items-center gap-2">
-            <div className="w-2 h-8 bg-white" />
-            <span>{settings.siteName || '11:11'}</span>
+          <div className="flex flex-col items-center sm:items-start group cursor-pointer" onClick={() => setActiveTab('COLLECTIONS')}>
+            <div className={`text-2xl sm:text-3xl font-black tracking-tighter flex items-center gap-1.5 transition-transform duration-500 group-hover:scale-105`}>
+               <span className="bg-gradient-to-r from-[#00f2fe] to-[#667eea] bg-clip-text text-transparent font-serif italic">eleven</span>
+               <span className="text-current opacity-30">:</span>
+               <span className="bg-gradient-to-r from-[#764ba2] to-[#ff9ee2] bg-clip-text text-transparent font-serif italic">eleven</span>
+            </div>
+            <span className="text-[7px] font-black uppercase tracking-[0.4em] opacity-40 mt-1 whitespace-nowrap">
+               Scarfs - Women Clothes
+            </span>
           </div>
 
           <nav className="hidden xl:flex gap-10 text-[11px] font-bold tracking-[3px] opacity-70">
