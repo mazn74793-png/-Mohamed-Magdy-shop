@@ -5,7 +5,7 @@
 
 /// <reference types="vite/client" />
 
-import { ShoppingBag, LayoutDashboard, PlusCircle, Activity, Box, Search, User, Trash2, X, Globe, CheckCircle2, AlertCircle, Edit2, Save, LogOut, Sun, Moon, Smartphone, MessageCircle, BarChart3, TrendingUp, Users, Calendar, ArrowRight, Star, Heart, Share2, Upload, Trash, Menu, ArrowLeft, Filter } from 'lucide-react';
+import { ShoppingBag, LayoutDashboard, PlusCircle, Activity, Box, Search, User, Trash2, X, Globe, CheckCircle2, AlertCircle, Edit2, Save, LogOut, Sun, Moon, Smartphone, MessageCircle, BarChart3, TrendingUp, Users, Calendar, ArrowRight, Star, Heart, Share2, Upload, Trash, Menu, ArrowLeft, Filter, Check, Maximize, CreditCard } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -73,6 +73,7 @@ interface Settings {
   instagram: string;
   tiktok: string;
   whatsapp: string;
+  whatsappLabel?: string;
   siteName: string;
   heroImage: string;
   shippingFee: number;
@@ -163,6 +164,10 @@ const TRANSLATIONS = {
   TAB_SETTINGS: { EN: "Settings", AR: "الإعدادات" },
   TAB_DASHBOARD: { EN: "Dashboard", AR: "لوحة التحكم" },
   TOTAL_REVENUE: { EN: "Total Revenue", AR: "إجمالي الأرباح" },
+  FOR_YOU: { EN: "For You", AR: "لك" },
+  SUBTOTAL: { EN: "Subtotal", AR: "المجموع" },
+  DELIVERY: { EN: "Delivery", AR: "التوصيل" },
+  ADD_TO_CART: { EN: "Add to Cart", AR: "أضف للسلة" },
   NEW_CUSTOMERS: { EN: "New Customers", AR: "عملاء جدد" },
   TOP_PRODUCTS: { EN: "Top Products", AR: "الأكثر مبيعاً" },
   UPLOADING: { EN: "Uploading...", AR: "جاري الرفع..." },
@@ -194,12 +199,14 @@ export default function App() {
     instagram: '', 
     tiktok: '', 
     whatsapp: '',
+    whatsappLabel: 'Contact 11:11',
     siteName: '11:11',
     heroImage: 'https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&q=80&w=1600',
     shippingFee: 50,
     heroTitle: { EN: TRANSLATIONS.HERO_TITLE.EN, AR: TRANSLATIONS.HERO_TITLE.AR },
     heroDesc: { EN: TRANSLATIONS.HERO_DESC.EN, AR: TRANSLATIONS.HERO_DESC.AR }
   });
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [checkoutForm, setCheckoutForm] = useState({ phone: '', phone2: '', address: '', method: 'cash' as 'insta' | 'cash', location: '' });
   const [isLocating, setIsLocating] = useState(false);
@@ -751,23 +758,23 @@ export default function App() {
         <AnimatePresence>
           {isAdmin && isAdminPanelOpen && (
             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden mb-12">
-              <div className="glass p-8 sm:p-12 rounded-[48px] bg-[#12121a] border-white/10 text-white shadow-4xl shadow-black/40">
-                <div className="flex flex-col gap-8 mb-12">
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-                    <h2 className="text-2xl font-black tracking-widest flex items-center gap-3 italic text-accent-pink">
-                      <LayoutDashboard size={28} /> {t('ADMIN_PANEL')}
+              <div className="p-8 sm:p-12 bg-[#0a0a0c] border border-white/10 rounded-[48px] text-white shadow-4xl shadow-black/80">
+                <div className="flex flex-col gap-10 mb-12">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-8">
+                    <h2 className="text-4xl font-black tracking-widest flex items-center gap-4 italic text-accent-pink uppercase">
+                      <LayoutDashboard size={40} /> {t('ADMIN_PANEL')}
                     </h2>
                     <div className="flex gap-4">
-                      <div className="px-6 py-3 glass bg-white/5 border-white/10 text-center rounded-2xl">
+                      <div className="px-8 py-4 glass bg-white/5 border-white/10 text-center rounded-3xl min-w-[120px]">
                         <p className="text-[10px] font-bold uppercase opacity-40 mb-1">{t('ACTIVE_ITEMS')}</p>
-                        <p className="text-xl font-black text-accent-green">{products.length}</p>
+                        <p className="text-2xl font-black text-accent-green">{products.length}</p>
                       </div>
-                      <div className="px-6 py-3 glass bg-white/5 border-white/10 text-center rounded-2xl">
+                      <div className="px-8 py-4 glass bg-white/5 border-white/10 text-center rounded-3xl min-w-[120px]">
                         <p className="text-[10px] font-bold uppercase opacity-40 mb-1">{t('ORDERS')}</p>
-                        <p className="text-xl font-black text-accent-pink">{orders.length}</p>
+                        <p className="text-2xl font-black text-accent-pink">{orders.length}</p>
                       </div>
                     </div>
-                    <button onClick={() => setIsAdminPanelOpen(false)} className="p-2 hover:bg-white/10 rounded-full text-white/50 hover:text-white transition-colors"><X /></button>
+                    <button onClick={() => setIsAdminPanelOpen(false)} className="p-3 hover:bg-white/10 rounded-full text-white/50 hover:text-white transition-all bg-white/5"><X /></button>
                   </div>
 
                   <div className="flex gap-4 border-b border-white/10 pb-4 overflow-x-auto custom-scrollbar">
@@ -1024,13 +1031,17 @@ export default function App() {
 
                     <div className="space-y-6">
                       <h3 className="text-xl font-bold italic">{t('SOCIAL_LINKS')}</h3>
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                         {['facebook', 'instagram', 'tiktok', 'whatsapp'].map(s => (
                           <div key={s} className="space-y-1">
                             <label className="text-[9px] font-bold uppercase opacity-50">{s}</label>
                             <input type="text" className="glass-input !bg-white/5 !text-white text-xs" value={(settings as any)[s] || ''} onChange={e => setSettings({...settings, [s]: e.target.value})} />
                           </div>
                         ))}
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold uppercase opacity-50">WhatsApp Button Label</label>
+                          <input type="text" className="glass-input !bg-white/5 !text-white text-xs" value={settings.whatsappLabel || ''} onChange={e => setSettings({...settings, whatsappLabel: e.target.value})} placeholder="e.g. Contact 11:11" />
+                        </div>
                       </div>
                     </div>
                     <button onClick={updateSettings} className="glass-btn bg-accent-pink text-white py-4 px-12 hover:scale-105 transition-all font-bold tracking-widest uppercase">{t('SAVE_SETTINGS')}</button>
@@ -1044,7 +1055,7 @@ export default function App() {
         <div className="flex flex-wrap items-center justify-center gap-4 py-10">
           <button 
             onClick={() => { setActiveTab('COLLECTIONS'); setSearchQuery(''); }}
-            className={`px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'COLLECTIONS' && searchQuery === '' ? 'bg-accent-pink text-white shadow-xl scale-105' : 'bg-black/5 hover:bg-black/10'}`}
+            className={`px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'COLLECTIONS' && searchQuery === '' ? 'bg-accent-pink text-white shadow-xl scale-105' : (theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-black/5 hover:bg-black/10')}`}
           >
             {t('FOR_YOU')}
           </button>
@@ -1164,42 +1175,34 @@ export default function App() {
           </div>
         )}
       </AnimatePresence>
-
-      {/* --- Fullscreen Image Modal --- */}
-      <AnimatePresence>
-        {isFullscreenView && selectedProduct && (
-          <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/95 backdrop-blur-3xl">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0" onClick={() => setIsFullscreenView(false)} />
-            <button onClick={() => setIsFullscreenView(false)} className="absolute top-10 right-10 p-4 glass rounded-full hover:bg-white/20 z-[410]"><X size={32} /></button>
-            <motion.img 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              src={(selectedProduct.images ? selectedProduct.images[activeImgIdx] : selectedProduct.img) || ''} 
-              className="max-w-[90vw] max-h-[90vh] object-contain shadow-2xl relative z-[405]"
-            />
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* --- Product Detail Modal --- */}
+           {/* --- Full Page Product Detail --- */}
       <AnimatePresence>
         {selectedProduct && (
-          <div className="fixed inset-0 z-[500] flex items-center justify-center p-0 lg:p-10 overflow-hidden">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedProduct(null)} className="absolute inset-0 bg-black/50 backdrop-blur-xl" />
-            <motion.div 
-              initial={{ y: 50, opacity: 0 }} 
-              animate={{ y: 0, opacity: 1 }} 
-              exit={{ y: 50, opacity: 0 }} 
-              className="relative w-full h-full lg:h-[90vh] lg:max-w-7xl glass lg:rounded-[60px] shadow-4xl border-none overflow-hidden grid grid-cols-1 lg:grid-cols-12 z-[510]"
-              style={{ background: theme === 'dark' ? '#0a0a0c' : '#ffffff' }}
-            >
-               <button onClick={() => setSelectedProduct(null)} className="absolute top-6 right-6 p-4 glass rounded-full hover:bg-black/10 z-[600] text-current"><X /></button>
-               
-               {/* Left: Gallery */}
-               <div className="lg:col-span-7 h-[50vh] lg:h-full relative bg-gray-100 dark:bg-black/40 overflow-hidden flex flex-col">
+          <motion.div 
+            initial={{ opacity: 0, scale: 1.05 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            className={`fixed inset-0 z-[500] flex flex-col ${theme === 'dark' ? 'bg-[#050508] text-white' : 'bg-[#fff0f6] text-black'} overflow-y-auto custom-scrollbar`}
+          >
+            {/* Header */}
+            <header className="p-6 sm:p-10 flex items-center justify-between sticky top-0 z-10 backdrop-blur-md bg-transparent">
+               <button onClick={() => setSelectedProduct(null)} className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[4px] group px-6 py-3 glass rounded-full">
+                  <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+                  {t('BACK_TO_SHOP')}
+               </button>
+               <div className="flex items-center gap-6">
+                 <button onClick={() => setIsCartOpen(true)} className="relative p-4 glass rounded-full hover:scale-110 transition-all bg-white/5">
+                    <ShoppingBag size={20} />
+                    {cart.length > 0 && <span className="absolute -top-1 -right-1 w-5 h-5 bg-accent-pink text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-lg">{cart.length}</span>}
+                 </button>
+               </div>
+            </header>
+
+            <main className="flex-1 max-w-[1600px] mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-0 lg:gap-12">
+               {/* Left: Sticky Image Section */}
+               <div className="lg:h-[calc(100vh-140px)] lg:sticky lg:top-[120px] p-6 sm:p-10 flex flex-col gap-6">
                   <div 
-                    className="relative flex-1 cursor-zoom-in overflow-hidden group"
+                    className="flex-1 relative rounded-[48px] overflow-hidden glass bg-black/5 dark:bg-white/5 cursor-zoom-in group shadow-4xl shadow-black/20 min-h-[400px]"
                     onClick={() => setIsFullscreenView(true)}
                     onMouseMove={(e) => {
                       const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
@@ -1214,26 +1217,24 @@ export default function App() {
                       key={activeImgIdx}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      src={selectedProduct.images ? selectedProduct.images[activeImgIdx] : selectedProduct.img} 
-                      className={`w-full h-full object-contain lg:object-cover transition-transform duration-200 ${isZoomed ? 'scale-[2.2]' : 'scale-100'}`}
+                      src={selectedProduct.images?.[activeImgIdx] || selectedProduct.img} 
+                      className={`w-full h-full object-cover transition-transform duration-300 ${isZoomed ? 'scale-[2.5]' : 'scale-100'}`}
                       style={isZoomed ? { transformOrigin: `${zoomPos.x}% ${zoomPos.y}%` } : {}}
                     />
                     {!isZoomed && (
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/5 pointer-events-none">
-                         <div className="p-5 glass rounded-full bg-white/20 backdrop-blur-sm shadow-2xl">
-                            <PlusCircle size={32} className="text-white" />
-                         </div>
+                      <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                        <div className="p-6 glass rounded-full bg-white/20 backdrop-blur-md"><Maximize size={32} className="text-white" /></div>
                       </div>
                     )}
                   </div>
                   
                   {selectedProduct.images && selectedProduct.images.length > 1 && (
-                    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-4 p-4 glass rounded-[32px] bg-black/20 backdrop-blur-xl border-white/10">
+                    <div className="flex gap-4 p-4 glass rounded-[32px] bg-black/5 dark:bg-white/5 overflow-x-auto custom-scrollbar no-scrollbar">
                       {selectedProduct.images.map((img, idx) => (
                         <button 
                           key={idx} 
-                          onClick={(e) => { e.stopPropagation(); setActiveImgIdx(idx); }}
-                          className={`w-16 h-16 rounded-2xl overflow-hidden border-2 transition-all shrink-0 ${activeImgIdx === idx ? 'border-accent-pink scale-110' : 'border-transparent opacity-50 hover:opacity-100'}`}
+                          onClick={() => setActiveImgIdx(idx)}
+                          className={`w-20 h-24 sm:w-24 sm:h-32 rounded-2xl overflow-hidden border-2 transition-all shrink-0 ${activeImgIdx === idx ? 'border-accent-pink scale-105 shadow-xl ring-4 ring-accent-pink/20' : 'border-transparent opacity-40 hover:opacity-100'}`}
                         >
                           <img src={img} className="w-full h-full object-cover" />
                         </button>
@@ -1242,100 +1243,133 @@ export default function App() {
                   )}
                </div>
 
-               {/* Right: Info */}
-               <div className={`lg:col-span-5 h-full overflow-y-auto p-10 sm:p-20 flex flex-col ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
-                  <div className="mb-12">
-                    <span className="text-xs font-black uppercase tracking-[6px] text-accent-pink/80 mb-6 block">{getL(selectedProduct.category)}</span>
-                    <h2 className="text-5xl sm:text-7xl font-black mb-8 leading-[1.1] tracking-tight">{getL(selectedProduct.name)}</h2>
-                    <div className="flex items-center gap-8 mb-12">
-                      <span className="text-5xl font-black text-accent-pink">{selectedProduct.price.toLocaleString()} <span className="text-2xl font-light opacity-50">{t('EGP')}</span></span>
-                      {selectedProduct.oldPrice && <span className="text-2xl line-through opacity-30 italic">{selectedProduct.oldPrice.toLocaleString()}</span>}
-                    </div>
-                    
-                    <div className="w-full h-px bg-current opacity-10 mb-12" />
+               {/* Right: Scrollable Info */}
+               <div className="p-6 sm:p-20 pb-40">
+                  <div className="max-w-xl">
+                     <span className="text-xs font-black uppercase tracking-[8px] text-accent-pink mb-6 block">{getL(selectedProduct.category)}</span>
+                     <h1 className="text-5xl sm:text-8xl font-black mb-10 leading-[0.95] tracking-tighter">{getL(selectedProduct.name)}</h1>
+                     
+                     <div className="flex items-center gap-10 mb-16">
+                        <div className="flex flex-col">
+                          <span className="text-6xl font-black text-accent-pink">{selectedProduct.price.toLocaleString()} <span className="text-xl font-light opacity-50">{t('EGP')}</span></span>
+                          {selectedProduct.oldPrice && <span className="text-2xl line-through opacity-30 italic mt-2">{selectedProduct.oldPrice.toLocaleString()} {t('EGP')}</span>}
+                        </div>
+                     </div>
 
-                    <p className="text-xl opacity-70 font-light leading-[1.8] mb-16 max-w-lg">
-                      {getL(selectedProduct.description) || (lang === 'EN' ? 
-                        "An exquisite embodiment of luxury craftsmanship, designed for those who appreciate the finer points of contemporary tailoring." :
-                        "تجسيد رائع للحرفية الفاخرة، مصمم لأولئك الذين يقدرون أدق تفاصيل التصميم العصري.")
-                      }
-                    </p>
+                     <p className="text-xl opacity-70 font-light leading-relaxed mb-16 border-l-4 border-accent-pink pl-8 italic">
+                        {getL(selectedProduct.description) || (lang === 'EN' ? 
+                          "An exquisite embodiment of luxury craftsmanship, designed for those who appreciate the finer points of contemporary tailoring." :
+                          "تجسيد رائع للحرفية الفاخرة، مصمم لأولئك الذين يقدرون أدق تفاصيل التصميم العصري.")
+                        }
+                     </p>
 
-                    <div className="grid grid-cols-2 gap-8 mb-16">
-                       <div className="p-8 glass rounded-[32px] bg-black/5 dark:bg-white/5 border-none">
-                          <h4 className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-3">{t('STOCK')}</h4>
-                          <p className={`text-xl font-black ${selectedProduct.stock > 0 ? 'text-accent-green' : 'text-accent-pink'}`}>
-                             {selectedProduct.stock > 0 ? `${selectedProduct.stock} ${t('ACTIVE_ITEMS')}` : t('OUT_OF_STOCK')}
-                          </p>
-                       </div>
-                       <div className="p-8 glass rounded-[32px] bg-black/5 dark:bg-white/5 border-none">
-                          <h4 className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-3">{t('DELIVERY')}</h4>
-                          <p className="text-xl font-black">{lang === 'AR' ? '2-4 أيام' : '2-4 Days'}</p>
-                       </div>
-                    </div>
+                     <div className="grid grid-cols-2 gap-6 mb-16">
+                        <div className="p-8 glass rounded-[32px] bg-black/5 dark:bg-white/5 flex flex-col gap-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest opacity-40">{t('STOCK')}</label>
+                          <span className={`text-xl font-black ${selectedProduct.stock > 0 ? 'text-accent-green' : 'text-accent-pink'}`}>
+                            {selectedProduct.stock > 0 ? `${selectedProduct.stock} ${t('ACTIVE_ITEMS')}` : t('OUT_OF_STOCK')}
+                          </span>
+                        </div>
+                        <div className="p-8 glass rounded-[32px] bg-black/5 dark:bg-white/5 flex flex-col gap-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest opacity-40">{t('DELIVERY')}</label>
+                          <span className="text-xl font-black">{lang === 'AR' ? '2-4 أيام عمل' : '2-4 Business Days'}</span>
+                        </div>
+                     </div>
 
-                    <button 
-                      onClick={() => addToCart(selectedProduct)}
-                      disabled={selectedProduct.stock <= 0}
-                      className={`w-full py-6 rounded-[32px] font-black uppercase tracking-[6px] transition-all shadow-4xl flex items-center justify-center gap-4 ${selectedProduct.stock > 0 ? 'bg-accent-pink text-white hover:scale-[1.03] active:scale-95' : 'bg-gray-500/20 text-gray-400 cursor-not-allowed'}`}
-                    >
-                      <ShoppingBag size={24} />
-                      {t('ADD_TO_CART')}
-                    </button>
+                     <div className="flex flex-col gap-5">
+                        <button 
+                          onClick={() => addToCart(selectedProduct)}
+                          disabled={selectedProduct.stock <= 0}
+                          className={`w-full py-7 rounded-[32px] font-black uppercase tracking-[8px] transition-all shadow-4xl flex items-center justify-center gap-4 ${selectedProduct.stock > 0 ? 'bg-accent-pink text-white hover:scale-[1.02] active:scale-95' : 'bg-gray-500/20 text-gray-400 cursor-not-allowed'}`}
+                        >
+                          <ShoppingBag size={24} />
+                          {t('ADD_TO_CART')}
+                        </button>
+                        <button 
+                          onClick={() => { addToCart(selectedProduct); setIsCartOpen(true); }}
+                          disabled={selectedProduct.stock <= 0}
+                          className={`w-full py-7 rounded-[32px] font-black uppercase tracking-[8px] transition-all shadow-4xl flex items-center justify-center gap-4 ${selectedProduct.stock > 0 ? 'bg-black text-white dark:bg-white dark:text-black hover:scale-[1.02] active:scale-95' : 'hidden'}`}
+                        >
+                          {lang === 'AR' ? 'شراء الآن' : 'Buy Now'}
+                        </button>
+                     </div>
                   </div>
 
-                  {/* Reviews Section */}
-                  <div className="mt-8">
-                    <div className="flex items-center justify-between mb-10 border-b border-current opacity-10 pb-4">
-                       <h3 className="text-sm font-black uppercase tracking-[4px]">{t('REVIEWS')}</h3>
-                       <div className="flex items-center gap-1 text-accent-pink">
-                          <Star size={16} fill="currentColor" />
-                          <span className="font-bold">4.9/5</span>
-                       </div>
-                    </div>
-                    
-                    <div className="space-y-8 mb-12">
-                      {reviews.length > 0 ? reviews.map(r => (
-                        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} key={r.id} className="p-8 glass rounded-[32px] border-none bg-black/5 dark:bg-white/5 relative group/rev">
-                          <div className="flex items-center gap-4 mb-4">
-                            {r.userPhoto ? <img src={r.userPhoto} className="w-12 h-12 rounded-full border-2 border-white/20" /> : <div className="w-12 h-12 rounded-full bg-accent-pink/20 flex items-center justify-center font-black text-accent-pink text-sm uppercase">{r.userName.charAt(0)}</div>}
-                            <div>
-                               <p className="font-black text-sm">{r.userName}</p>
-                               <div className="flex items-center gap-1 text-yellow-500 scale-75 origin-left">
-                                  {[...Array(5)].map((_, i) => <Star key={i} size={14} fill={i < r.rating ? "currentColor" : "none"} />)}
-                               </div>
-                            </div>
-                          </div>
-                          <p className="text-sm opacity-60 leading-relaxed font-light">{r.comment}</p>
-                        </motion.div>
-                      )) : (
-                        <p className="text-center opacity-30 py-10 font-serif italic">{lang === 'EN' ? "Be the first to share your thoughts..." : "كن أول من يشارك رأيه..."}</p>
-                      )}
-                    </div>
-
-                    {user && (
-                      <div className="p-8 glass rounded-[40px] bg-black/5 dark:bg-white/5 border-none">
-                        <h4 className="text-xs font-black uppercase underline mb-6 tracking-widest">{lang === 'EN' ? "WRITE A REVIEW" : "اكتب تقييماً"}</h4>
-                        <div className="flex items-center gap-2 mb-6">
-                           {[1,2,3,4,5].map(star => (
-                             <button key={star} onClick={() => setRating(star)} className={`p-1 transition-all ${rating >= star ? 'text-yellow-500' : 'opacity-20 hover:opacity-100 hover:text-yellow-500'}`}>
-                               <Star size={24} fill={rating >= star ? "currentColor" : "none"} />
-                             </button>
-                           ))}
+                  {/* Reviews */}
+                  <div className="mt-32 max-w-xl">
+                     <div className="flex items-center justify-between mb-12 border-b border-black/10 dark:border-white/10 pb-6">
+                        <h3 className="text-lg font-black uppercase tracking-[6px] italic">{t('REVIEWS')}</h3>
+                        <div className="flex items-center gap-2 text-accent-pink bg-accent-pink/5 px-4 py-2 rounded-full">
+                           <Star size={20} fill="currentColor" />
+                           <span className="font-black text-sm">4.9/5</span>
                         </div>
-                        <textarea 
-                          placeholder={lang === 'AR' ? 'شاركنا برأيك عن المنتج' : 'Share your thoughts about this masterpiece'} 
-                          value={comment} 
-                          onChange={(e) => setComment(e.target.value)}
-                          className="w-full bg-white/10 dark:bg-black/20 border-none rounded-[24px] p-6 text-sm mb-6 min-h-[120px] outline-none placeholder:opacity-40"
-                        />
-                        <button onClick={() => { addReview(selectedProduct.id, rating, comment); setComment(''); }} className="px-10 py-4 bg-white text-black dark:bg-white dark:text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all">Submit Review</button>
-                      </div>
-                    )}
+                     </div>
+
+                     <div className="space-y-8 mb-16">
+                        {reviews.length > 0 ? reviews.map(r => (
+                          <div key={r.id} className="p-10 glass rounded-[48px] bg-black/5 dark:bg-white/5 relative group/rev border-none">
+                             <div className="flex items-center gap-6 mb-6">
+                                <div className="w-16 h-16 rounded-full bg-accent-pink/20 flex items-center justify-center font-black text-accent-pink text-lg uppercase shadow-inner">
+                                   {r.userPhoto ? <img src={r.userPhoto} className="w-full h-full rounded-full object-cover" /> : r.userName.charAt(0)}
+                                </div>
+                                <div>
+                                   <p className="font-black text-lg">{r.userName}</p>
+                                   <div className="flex gap-1 text-yellow-500 mt-1">
+                                      {[...Array(5)].map((_, i) => <Star key={i} size={14} fill={i < r.rating ? "currentColor" : "none"} />)}
+                                   </div>
+                                </div>
+                             </div>
+                             <p className="text-lg opacity-60 leading-relaxed font-light italic">"{r.comment}"</p>
+                          </div>
+                        )) : (
+                          <p className="text-center opacity-30 py-20 font-serif italic text-2xl">{lang === 'EN' ? "No reviews yet..." : "لا توجد تقييمات بعد..."}</p>
+                        )}
+                     </div>
+
+                     {user && (
+                       <div className="p-10 glass rounded-[48px] bg-black/5 dark:bg-white/5 border-2 border-accent-pink/10">
+                          <h4 className="text-[10px] font-black uppercase tracking-[4px] mb-8 opacity-40">{t('ADD_REVIEW')}</h4>
+                          <div className="flex items-center gap-3 mb-8">
+                             {[1,2,3,4,5].map(star => (
+                                <button key={star} onClick={() => setRating(star)} className={`p-2 transition-all ${rating >= star ? 'text-yellow-500 scale-125' : 'opacity-20 hover:opacity-100'}`}>
+                                   <Star size={32} fill={rating >= star ? "currentColor" : "none"} />
+                                </button>
+                             ))}
+                          </div>
+                          <textarea 
+                             placeholder={lang === 'AR' ? 'شاركنا بتجربتك...' : 'Share your experience...'} 
+                             value={comment} 
+                             onChange={(e) => setComment(e.target.value)}
+                             className="w-full glass bg-white/10 dark:bg-black/20 border-none rounded-[32px] p-8 text-lg mb-8 min-h-[160px] outline-none placeholder:opacity-30"
+                          />
+                          <button onClick={() => { addReview(selectedProduct.id, rating, comment); setComment(''); }} className="w-full py-6 bg-accent-pink text-white rounded-[32px] font-black uppercase tracking-[4px] hover:scale-[1.03] shadow-4xl transition-all">{lang === 'AR' ? 'إضافة تقييم' : 'Submit Review'}</button>
+                       </div>
+                     )}
                   </div>
                </div>
-            </motion.div>
-          </div>
+            </main>
+
+            {/* Fullscreen Overlay inside Detail */}
+            <AnimatePresence>
+              {isFullscreenView && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[600] bg-black flex flex-col p-8 sm:p-20">
+                   <button onClick={() => setIsFullscreenView(false)} className="absolute top-10 right-10 p-5 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all backdrop-blur-xl scale-110"><X size={32} /></button>
+                   <div className="flex-1 flex items-center justify-center p-4">
+                      <img src={selectedProduct.images?.[activeImgIdx] || selectedProduct.img} className="max-w-full max-h-full object-contain shadow-4xl" />
+                   </div>
+                   {selectedProduct.images && selectedProduct.images.length > 1 && (
+                      <div className="flex gap-4 p-8 justify-center overflow-x-auto no-scrollbar">
+                         {selectedProduct.images.map((img, idx) => (
+                            <button key={idx} onClick={() => setActiveImgIdx(idx)} className={`w-24 h-32 rounded-2xl overflow-hidden border-2 transition-all shrink-0 ${activeImgIdx === idx ? 'border-accent-pink scale-110 shadow-xl' : 'border-transparent opacity-40'}`}>
+                               <img src={img} className="w-full h-full object-cover" />
+                            </button>
+                         ))}
+                      </div>
+                   )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -1343,88 +1377,216 @@ export default function App() {
       <AnimatePresence>
         {isCartOpen && (
           <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsCartOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-xl z-[250]" />
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              onClick={() => setIsCartOpen(false)} 
+              className="fixed inset-0 bg-black/60 backdrop-blur-xl z-[250]" 
+            />
             <motion.aside
               initial={{ x: lang === 'AR' ? -600 : 600 }}
               animate={{ x: 0 }}
               exit={{ x: lang === 'AR' ? -600 : 600 }}
-              className={`fixed top-0 ${lang === 'AR' ? 'left-0 border-r' : 'right-0 border-l'} border-white/10 w-full max-w-[500px] h-full glass z-[260] flex flex-col p-8 sm:p-12 bg-black/40 backdrop-blur-3xl`}
+              className={`fixed top-0 ${lang === 'AR' ? 'left-0 border-r shadow-2xl shadow-pink-500/10' : 'right-0 border-l shadow-2xl shadow-pink-500/10'} border-white/10 w-full max-w-[550px] h-full ${theme === 'dark' ? 'bg-[#0a0a0c]' : 'bg-white'} z-[260] flex flex-col overflow-hidden`}
               dir={lang === 'AR' ? 'rtl' : 'ltr'}
             >
-              <div className="flex items-center justify-between mb-12">
-                <h3 className="text-3xl font-black">{t('YOUR_CART')}</h3>
-                <button onClick={() => setIsCartOpen(false)} className="p-3 hover:bg-white/10 rounded-full transition-colors"><X size={24} /></button>
+              {/* Cart Header */}
+              <div className="p-8 pb-4 flex items-center justify-between border-b border-black/5 dark:border-white/5">
+                <div className="flex items-center gap-4">
+                   <div className="p-3 bg-accent-pink/10 text-accent-pink rounded-2xl">
+                      <ShoppingBag size={24} />
+                   </div>
+                   <h3 className="text-2xl font-black uppercase tracking-tight">{t('YOUR_CART')}</h3>
+                </div>
+                <button 
+                  onClick={() => setIsCartOpen(false)} 
+                  className="p-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-all hover:rotate-90"
+                >
+                  <X size={24} />
+                </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto space-y-6 custom-scrollbar pr-4">
+              {/* Cart Items */}
+              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
                 {cart.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center opacity-20 gap-8">
-                    <ShoppingBag size={100} strokeWidth={1} />
-                    <p className="text-2xl font-light">{t('EMPTY_CART')}</p>
+                  <div className="h-full flex flex-col items-center justify-center text-center p-10">
+                    <motion.div 
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="w-32 h-32 bg-accent-pink/5 rounded-full flex items-center justify-center mb-8 text-accent-pink/20"
+                    >
+                       <ShoppingBag size={64} />
+                    </motion.div>
+                    <p className="text-xl font-black opacity-30 uppercase tracking-[4px]">{t('EMPTY_CART')}</p>
+                    <button 
+                      onClick={() => setIsCartOpen(false)}
+                      className="mt-8 text-xs font-black uppercase tracking-[2px] text-accent-pink hover:underline"
+                    >
+                       {t('BACK_TO_SHOP')}
+                    </button>
                   </div>
                 ) : (
-                  <>
-                    {cart.map(item => (
-                      <motion.div layout key={item.id} className="flex gap-6 p-6 glass rounded-[32px] group">
-                        <img src={item.img} className="w-24 h-32 object-cover rounded-2xl shadow-lg" />
-                        <div className="flex-1">
-                          <div className="flex justify-between items-start mb-1">
-                             <p className="font-bold text-base">{getL(item.name)}</p>
-                             <button onClick={() => removeFromCart(item.id)} className="text-red-500/20 hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
-                          </div>
-                          <p className="text-accent-pink text-sm mb-4">{item.price} {t('EGP')}</p>
-                          <div className="flex items-center gap-4">
-                            <button onClick={() => updateCartQuantity(item.id, -1)} className="w-10 h-10 rounded-xl glass flex items-center justify-center hover:bg-white/10">-</button>
-                            <span className="text-base font-bold w-4 text-center">{item.quantity}</span>
-                            <button onClick={() => updateCartQuantity(item.id, 1)} className="w-10 h-10 rounded-xl glass flex items-center justify-center hover:bg-white/10">+</button>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                    
-                    <div className="mt-12 space-y-4 p-8 glass rounded-[40px] bg-black/5 dark:bg-white/5">
-                        <h4 className="text-sm font-black uppercase tracking-widest border-b border-black/5 pb-4 mb-4">{lang === 'AR' ? 'بيانات الشحن' : 'Shipping Details'}</h4>
-                        <input className="glass-input !bg-white/50 text-sm" placeholder={lang === 'AR' ? 'العنوان بالتفصيل' : 'Detailed Address'} value={checkoutForm.address || ''} onChange={e => setCheckoutForm({...checkoutForm, address: e.target.value})} />
-                        <div className="grid grid-cols-2 gap-4">
-                          <input className="glass-input !bg-white/50 text-sm" placeholder={lang === 'AR' ? 'رقم الهاتف' : 'Phone'} value={checkoutForm.phone || ''} onChange={e => setCheckoutForm({...checkoutForm, phone: e.target.value})} />
-                          <input className="glass-input !bg-white/50 text-sm" placeholder={lang === 'AR' ? 'رقم احتياطي' : 'Backup Phone'} value={checkoutForm.phone2 || ''} onChange={e => setCheckoutForm({...checkoutForm, phone2: e.target.value})} />
-                        </div>
-                        
-                        <div className="flex items-center gap-3 py-2">
-                           <button onClick={shareLocation} disabled={isLocating} className="flex-1 py-3 glass rounded-2xl bg-accent-pink/5 text-accent-pink text-[10px] font-bold uppercase flex items-center justify-center gap-2 hover:bg-accent-pink/10">
-                              <Globe size={14} /> {isLocating ? (lang === 'AR' ? 'جاري التحديد...' : 'Locating...') : (lang === 'AR' ? 'إرسال الموقع الحالي (GPS)' : 'Share GPS Location')}
-                           </button>
-                        </div>
-
-                        <h4 className="text-xs font-black uppercase tracking-widest pt-4">{lang === 'AR' ? 'طريقة الدفع' : 'Payment Method'}</h4>
-                        <div className="grid grid-cols-2 gap-4">
-                           <button onClick={() => setCheckoutForm({...checkoutForm, method: 'cash'})} className={`py-4 rounded-3xl text-[10px] font-black uppercase border transition-all ${checkoutForm.method === 'cash' ? 'bg-accent-pink text-white border-accent-pink shadow-xl' : 'glass opacity-40 border-transparent'}`}>Cash / كاش</button>
-                           <button onClick={() => setCheckoutForm({...checkoutForm, method: 'insta'})} className={`py-4 rounded-3xl text-[10px] font-black uppercase border transition-all ${checkoutForm.method === 'insta' ? 'bg-[#9333ea] text-white border-[#9333ea] shadow-xl' : 'glass opacity-40 border-transparent'}`}>InstaPay</button>
-                        </div>
-                    </div>
-                  </>
+                  <div className="space-y-6">
+                     {cart.map(item => (
+                       <motion.div 
+                         layout 
+                         key={item.id} 
+                         initial={{ opacity: 0, y: 20 }}
+                         animate={{ opacity: 1, y: 0 }}
+                         className="flex gap-6 p-6 rounded-[32px] glass bg-black/5 dark:bg-white/5 group border border-transparent hover:border-accent-pink/20 transition-all"
+                       >
+                         <div className="w-24 h-32 rounded-2xl overflow-hidden shadow-xl shrink-0 border border-white/10 relative">
+                            <img src={item.img} className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500" />
+                         </div>
+                         <div className="flex-1 flex flex-col justify-between py-1">
+                           <div className="flex justify-between items-start">
+                              <div>
+                                 <p className="font-black text-lg tracking-tight mb-1">{getL(item.name)}</p>
+                                 <p className="text-xs opacity-50 font-medium uppercase tracking-widest">{lang === 'AR' ? 'سعر الوحدة' : 'Unit Price'}: {item.price} {t('EGP')}</p>
+                              </div>
+                              <button 
+                                onClick={() => removeFromCart(item.id)} 
+                                className="p-2 text-red-500/20 hover:text-red-500 hover:bg-red-500/5 rounded-full transition-all"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                           </div>
+                           
+                           <div className="flex items-center justify-between mt-4">
+                              <div className="flex items-center bg-black/10 dark:bg-white/10 rounded-xl p-1">
+                                <button 
+                                  onClick={() => updateCartQuantity(item.id, -1)} 
+                                  className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 transition-colors font-bold"
+                                >-</button>
+                                <span className="text-sm font-black w-8 text-center">{item.quantity}</span>
+                                <button 
+                                  onClick={() => updateCartQuantity(item.id, 1)} 
+                                  className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 transition-colors font-bold"
+                                >+</button>
+                              </div>
+                              <p className="text-accent-pink font-black text-lg">{(item.price * item.quantity).toLocaleString()} <span className="text-xs opacity-50 font-normal">{t('EGP')}</span></p>
+                           </div>
+                         </div>
+                       </motion.div>
+                     ))}
+                  </div>
                 )}
               </div>
 
+              {/* Cart Footer */}
               {cart.length > 0 && (
-                <div className="mt-12 pt-12 border-t border-white/10">
-                  <div className="space-y-2 mb-6 opacity-60 text-xs font-bold uppercase tracking-widest">
-                    <div className="flex justify-between">
-                       <span>{lang === 'AR' ? 'سعر المنتجات' : 'Subtotal'}</span>
-                       <span>{cartTotal.toLocaleString()} {t('EGP')}</span>
-                    </div>
-                    <div className="flex justify-between">
-                       <span>{lang === 'AR' ? 'سعر التوصيل' : 'Shipping'}</span>
-                       <span>{settings.shippingFee} {t('EGP')}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between mb-8">
-                    <span className="text-lg opacity-50 uppercase tracking-[4px]">{t('TOTAL')}</span>
-                    <span className="text-4xl font-black text-accent-pink">{(cartTotal + settings.shippingFee).toLocaleString()} {t('EGP')}</span>
-                  </div>
-                  <button onClick={handleCheckout} className="w-full py-6 bg-accent-pink text-white rounded-[24px] font-black uppercase tracking-[4px] hover:scale-[1.02] active:scale-95 transition-all shadow-4xl">{t('CHECKOUT')}</button>
+                <div className="p-8 pt-6 border-t border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5">
+                   <div className="space-y-4 mb-8">
+                     <div className="flex justify-between items-center opacity-60">
+                        <span className="text-sm font-black uppercase tracking-widest">{t('SUBTOTAL')}</span>
+                        <span className="font-bold">{cartTotal.toLocaleString()} {t('EGP')}</span>
+                     </div>
+                     <div className="flex justify-between items-center text-2xl font-black">
+                        <span className="uppercase tracking-widest">{t('TOTAL')}</span>
+                        <span className="text-accent-pink">{cartTotal.toLocaleString()} <span className="text-sm font-black opacity-50">{t('EGP')}</span></span>
+                     </div>
+                   </div>
+
+                   <button 
+                    onClick={() => { setIsCartOpen(false); setIsCheckoutOpen(true); }}
+                    className="w-full py-6 rounded-[24px] bg-accent-pink text-white font-black uppercase tracking-[6px] shadow-4xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-4"
+                   >
+                     <Check size={24} />
+                     {t('CHECKOUT')}
+                   </button>
+                   
+                   <p className="text-center text-[9px] font-black uppercase tracking-widest opacity-30 mt-6 italic">
+                     {lang === 'AR' ? 'جميع الأسعار تشمل ضريبة القيمة المضافة' : 'ALL PRICES INCLUDE VAT'}
+                   </p>
                 </div>
               )}
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Checkout Sidebar */}
+      <AnimatePresence>
+        {isCheckoutOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              onClick={() => setIsCheckoutOpen(false)} 
+              className="fixed inset-0 bg-black/80 backdrop-blur-2xl z-[300]" 
+            />
+            <motion.aside
+              initial={{ x: lang === 'AR' ? -600 : 600 }}
+              animate={{ x: 0 }}
+              exit={{ x: lang === 'AR' ? -600 : 600 }}
+              className={`fixed top-0 ${lang === 'AR' ? 'left-0 border-r' : 'right-0 border-l'} border-white/10 w-full max-w-[550px] h-full ${theme === 'dark' ? 'bg-[#0a0a0c]' : 'bg-[#fff0f6]'} text-current z-[310] flex flex-col p-10 overflow-y-auto custom-scrollbar`}
+              dir={lang === 'AR' ? 'rtl' : 'ltr'}
+            >
+                <div className="flex items-center justify-between mb-16">
+                   <h3 className="text-3xl font-black uppercase tracking-[4px]">{t('CHECKOUT')}</h3>
+                   <button onClick={() => setIsCheckoutOpen(false)} className="p-3 bg-black/5 dark:bg-white/5 rounded-full"><X size={24} /></button>
+                </div>
+
+                <div className="space-y-12">
+                   <div className="space-y-8">
+                      <div className="flex items-center gap-4">
+                         <div className="flex-1 h-px bg-current opacity-10" />
+                         <span className="text-[10px] font-black uppercase tracking-[4px] opacity-40">{lang === 'AR' ? 'بيانات الشحن' : 'Shipping Details'}</span>
+                         <div className="flex-1 h-px bg-current opacity-10" />
+                      </div>
+
+                      <div className="space-y-4">
+                         <input className="glass-input text-lg py-6" placeholder={lang === 'AR' ? 'العنوان بالتفصيل' : 'Detailed Address'} value={checkoutForm.address} onChange={e => setCheckoutForm({...checkoutForm, address: e.target.value})} />
+                         <div className="grid grid-cols-2 gap-4">
+                            <input className="glass-input text-lg py-6" placeholder={lang === 'AR' ? 'رقم الهاتف' : 'Phone'} value={checkoutForm.phone} onChange={e => setCheckoutForm({...checkoutForm, phone: e.target.value})} />
+                            <input className="glass-input text-lg py-6" placeholder={lang === 'AR' ? 'رقم احتياطي' : 'Backup Phone'} value={checkoutForm.phone2} onChange={e => setCheckoutForm({...checkoutForm, phone2: e.target.value})} />
+                         </div>
+                         <button onClick={shareLocation} disabled={isLocating} className={`w-full py-6 rounded-[32px] border-2 border-dashed transition-all flex items-center justify-center gap-4 font-black uppercase tracking-widest text-xs ${checkoutForm.location ? 'bg-accent-green/10 border-accent-green text-accent-green' : 'border-current opacity-30 hover:opacity-100 hover:bg-current/5'}`}>
+                            {checkoutForm.location ? <CheckCircle2 size={24} /> : <Globe size={24} />}
+                            {isLocating ? (lang === 'AR' ? 'جاري التحديد...' : 'Locating...') : (checkoutForm.location ? (lang === 'AR' ? 'تم حفظ الموقع' : 'Location Saved') : (lang === 'AR' ? 'إرسال الموقع الحالي (GPS)' : 'Share GPS Location'))}
+                         </button>
+                      </div>
+                   </div>
+
+                   <div className="space-y-8">
+                      <div className="flex items-center gap-4">
+                         <div className="flex-1 h-px bg-current opacity-10" />
+                         <span className="text-[10px] font-black uppercase tracking-[4px] opacity-40">{lang === 'AR' ? 'طريقة الدفع' : 'Payment Method'}</span>
+                         <div className="flex-1 h-px bg-current opacity-10" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                         <button onClick={() => setCheckoutForm({...checkoutForm, method: 'cash'})} className={`py-6 rounded-[32px] border-2 transition-all flex flex-col items-center gap-3 ${checkoutForm.method === 'cash' ? 'bg-accent-pink text-white border-accent-pink shadow-xl scale-105' : 'border-current opacity-20 hover:opacity-100'}`}>
+                            <CreditCard size={32} />
+                            <span className="text-[10px] font-black uppercase">Cash on Delivery</span>
+                         </button>
+                         <button onClick={() => setCheckoutForm({...checkoutForm, method: 'insta'})} className={`py-6 rounded-[32px] border-2 transition-all flex flex-col items-center gap-3 ${checkoutForm.method === 'insta' ? 'bg-purple-600 text-white border-purple-600 shadow-xl scale-105' : 'border-current opacity-20 hover:opacity-100'}`}>
+                            <Smartphone size={32} />
+                            <span className="text-[10px] font-black uppercase">InstaPay</span>
+                         </button>
+                      </div>
+                   </div>
+
+                   <div className="pt-12 border-t border-black/10 dark:border-white/10">
+                      <div className="flex justify-between items-center mb-4 opacity-50 font-bold uppercase tracking-widest text-xs">
+                         <span>{lang === 'AR' ? 'سعر المنتجات' : 'Subtotal'}</span>
+                         <span>{cartTotal.toLocaleString()} {t('EGP')}</span>
+                      </div>
+                      <div className="flex justify-between items-center mb-8 font-bold uppercase tracking-widest text-xs">
+                         <span className="opacity-50">{lang === 'AR' ? 'التوصيل' : 'Shipping'}</span>
+                         <span className="text-accent-pink">{settings.shippingFee} {t('EGP')}</span>
+                      </div>
+                      <div className="flex justify-between items-end mb-12">
+                         <span className="text-2xl font-black uppercase tracking-[4px]">{t('TOTAL')}</span>
+                         <div className="text-right">
+                            <span className="text-5xl font-black text-accent-pink">{(cartTotal + settings.shippingFee).toLocaleString()}</span>
+                            <span className="text-sm font-black opacity-30 ml-2 uppercase">EGP</span>
+                         </div>
+                      </div>
+                      <button onClick={handleCheckout} className="w-full py-8 bg-black text-white dark:bg-accent-pink rounded-[40px] font-black uppercase tracking-[8px] hover:scale-[1.03] active:scale-95 transition-all shadow-4xl">{t('CHECKOUT')}</button>
+                   </div>
+                </div>
             </motion.aside>
           </>
         )}
@@ -1435,11 +1597,11 @@ export default function App() {
         href={`https://wa.me/${settings.whatsapp}`} 
         target="_blank" 
         rel="noreferrer" 
-        className={`fixed bottom-6 ${lang === 'AR' ? 'left-6' : 'right-6'} z-[300] w-16 h-16 bg-[#25D366] text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all group`}
+        className={`fixed bottom-6 ${lang === 'AR' ? 'left-6' : 'right-6'} z-[100] w-16 h-16 bg-[#25D366] text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all group`}
       >
         <MessageCircle size={32} />
         <span className={`absolute ${lang === 'AR' ? 'left-20' : 'right-20'} bg-black text-white text-[10px] font-black uppercase tracking-widest py-2 px-4 rounded-full opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-xl`}>
-          Contact 11:11
+          {settings.whatsappLabel || 'Contact 11:11'}
         </span>
       </a>
 
