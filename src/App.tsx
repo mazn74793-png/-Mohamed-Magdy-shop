@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/// <reference types="vite/client" />
+
 import { ShoppingBag, LayoutDashboard, PlusCircle, Activity, Box, Search, User, Trash2, X, Globe, CheckCircle2, AlertCircle, Edit2, Save, LogOut, Sun, Moon, Smartphone, MessageCircle, BarChart3, TrendingUp, Users, Calendar, ArrowRight, Star, Heart, Share2, Upload, Trash, Menu, ArrowLeft, Filter } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -168,7 +170,7 @@ const TRANSLATIONS = {
 
 export default function App() {
   const [lang, setLang] = useState<Language>('AR');
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [theme, setTheme] = useState<'dark' | 'light'>('light');
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [activeTab, setActiveTab] = useState('COLLECTIONS');
@@ -177,7 +179,7 @@ export default function App() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
-  const [adminTab, setAdminTab] = useState<'PRODUCTS' | 'ORDERS' | 'SETTINGS'>('PRODUCTS');
+  const [adminTab, setAdminTab] = useState<'PRODUCTS' | 'ORDERS' | 'SETTINGS' | 'DASHBOARD'>('DASHBOARD');
   const [orders, setOrders] = useState<Order[]>([]);
   const [settings, setSettings] = useState<Settings>({ 
     facebook: '', 
@@ -191,6 +193,8 @@ export default function App() {
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
   const [activeImgIdx, setActiveImgIdx] = useState(0);
   const [isZoomed, setIsZoomed] = useState(false);
   const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });
@@ -224,13 +228,29 @@ export default function App() {
     return obj[lang] || obj['EN'] || obj['AR'] || '';
   };
 
-  // --- Derived Data ---
+  const filtered = products.filter(p => {
+    const name = getL(p.name);
+    const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase());
+    if (!matchesSearch) return false;
+    
+    if (activeTab === 'NEW_ARRIVALS') return !!p.isNew;
+    if (activeTab === 'SALE') return !!p.isSale;
+    return true;
+  });
+
   const stats = useMemo(() => {
     const totalRevenue = orders.reduce((sum, o) => sum + (o.status === 'completed' ? o.total : 0), 0);
     const completedOrders = orders.filter(o => o.status === 'completed').length;
     const pendingOrders = orders.filter(o => o.status === 'pending').length;
     
-    // Simple mock data for graph
+    // Group products by category for home page
+    const groupedProducts: Record<string, Product[]> = {};
+    filtered.forEach(p => {
+      const cat = getL(p.category) || (lang === 'EN' ? 'Uncategorized' : 'عام');
+      if (!groupedProducts[cat]) groupedProducts[cat] = [];
+      groupedProducts[cat].push(p);
+    });
+
     const chartData = [
       { name: 'Jan', val: 4000 },
       { name: 'Feb', val: 3000 },
@@ -241,8 +261,8 @@ export default function App() {
       { name: 'Jul', val: 3490 },
     ];
 
-    return { totalRevenue, completedOrders, pendingOrders, chartData };
-  }, [orders]);
+    return { totalRevenue, completedOrders, pendingOrders, chartData, groupedProducts };
+  }, [orders, filtered, lang]);
 
   // --- Effects ---
   useEffect(() => {
@@ -570,6 +590,8 @@ export default function App() {
 
     try {
       if (isEditing) {
+        // Double check we have a valid ID
+        if (typeof isEditing !== 'string') throw new Error("Invalid editing ID");
         await updateDoc(doc(db, 'products', isEditing), productData);
         notify(TRANSLATIONS.PRODUCT_UPDATED);
       } else {
@@ -594,17 +616,7 @@ export default function App() {
     }
   };
 
-    const filtered = products.filter(p => {
-      const name = getL(p.name);
-      const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase());
-      if (!matchesSearch) return false;
-      
-      if (activeTab === 'NEW_ARRIVALS') return !!p.isNew;
-      if (activeTab === 'SALE') return !!p.isSale;
-      return true;
-    });
-
-    return (
+  return (
     <div className={`flex flex-col w-full min-h-screen transition-all duration-500 ${theme === 'dark' ? 'bg-[#0a0a0f] text-white' : 'bg-[#f8f9fa] text-gray-900'}`} dir={lang === 'AR' ? 'rtl' : 'ltr'}>
       {/* Background Gradients */}
       <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden">
@@ -980,8 +992,31 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {/* Product Grid */}
-        <main>
+        <div className="flex flex-wrap items-center justify-center gap-4 py-10">
+          <button 
+            onClick={() => { setActiveTab('COLLECTIONS'); setSearchQuery(''); }}
+            className={`px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'COLLECTIONS' && searchQuery === '' ? 'bg-accent-pink text-white shadow-xl scale-105' : 'bg-black/5 hover:bg-black/10'}`}
+          >
+            {t('FOR_YOU')}
+          </button>
+          {(Object.entries(stats.groupedProducts as Record<string, Product[]>) as [string, Product[]][]).map(([category, items]) => (
+            <button 
+              key={category}
+              onClick={() => { 
+                setActiveTab('COLLECTIONS'); 
+                setSearchQuery(category); 
+                const el = document.getElementById(`cat-${category}`);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              className={`px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${searchQuery === category ? 'bg-accent-pink text-white shadow-xl scale-105' : 'bg-black/5 hover:bg-black/10'}`}
+            >
+              {category}
+            </button>
+          ))}
+        </div>
+
+        {/* Product Grid Grouped by Category */}
+        <main className="space-y-32">
           <AnimatePresence mode="popLayout">
             {filtered.length === 0 ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-20 opacity-30 gap-6">
@@ -989,39 +1024,49 @@ export default function App() {
                 <p className="text-xl font-light">{t('NO_PRODUCTS')}</p>
               </motion.div>
             ) : (
-              <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 sm:gap-12 pb-20">
-                {filtered.map((product, idx) => (
-                    <motion.div layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ delay: idx * 0.05 }} key={product.id} className="text-center group flex flex-col">
-                      <div className="relative aspect-[3/4] mb-6 overflow-hidden rounded-[40px] bg-white/5 border border-white/10 shadow-xl group-hover:shadow-3xl transition-all duration-500 cursor-pointer" onClick={() => setSelectedProduct(product)}>
-                        <img src={product.img} alt={getL(product.name)} referrerPolicy="no-referrer" className="object-cover w-full h-full transition-transform duration-[1.5s] group-hover:scale-110" />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-500" />
-                        
-                        {(product.isNew || product.isSale) && (
-                          <div className="absolute top-6 right-6 flex flex-col gap-2">
-                            {product.isNew && <span className="bg-accent-green text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full text-black">New</span>}
-                            {product.isSale && <span className="bg-accent-pink text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full text-black">Sale</span>}
-                          </div>
-                        )}
+              (Object.entries(stats.groupedProducts as Record<string, Product[]>) as [string, Product[]][]).map(([category, items]) => (
+                <section key={category} id={`cat-${category}`} className="space-y-12 scroll-mt-32">
+                  <div className="flex items-center gap-6">
+                    <h2 className="text-3xl font-black uppercase tracking-[4px]">{category}</h2>
+                    <div className="flex-1 h-px bg-current opacity-10" />
+                    <span className="text-xs font-bold opacity-30">{items.length} {t('TAB_PRODUCTS')}</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-8">
+                    {(items as Product[]).map((product, idx) => (
+                        <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ delay: idx * 0.05 }} key={product.id} className="text-center group flex flex-col">
+                          <div className="relative aspect-[3/4] mb-4 overflow-hidden rounded-[24px] bg-white/5 border border-black/5 dark:border-white/10 shadow-sm group-hover:shadow-xl transition-all duration-500 cursor-pointer" onClick={() => setSelectedProduct(product)}>
+                            <img src={product.img} alt={getL(product.name)} referrerPolicy="no-referrer" className="object-cover w-full h-full transition-transform duration-[1.5s] group-hover:scale-110" />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500" />
+                            
+                            {(product.isNew || product.isSale) && (
+                              <div className="absolute top-4 right-4 flex flex-col gap-1">
+                                {product.isNew && <span className="bg-accent-green text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-full text-black">New</span>}
+                                {product.isSale && <span className="bg-accent-pink text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-full text-black">Sale</span>}
+                              </div>
+                            )}
 
-                        {isAdmin && (
-                          <div className="absolute top-4 left-4 right-4 flex justify-between opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-                            <button onClick={() => startEdit(product)} className="p-3 glass rounded-2xl hover:bg-white/20"><Edit2 size={16} /></button>
-                            <button onClick={() => handleDelete(product.id)} className="p-3 glass bg-red-500/10 rounded-2xl hover:bg-red-500/30 text-red-400"><Trash2 size={16} /></button>
-                          </div>
-                        )}
+                            {isAdmin && (
+                              <div className="absolute top-3 left-3 right-3 flex justify-between opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                                <button onClick={() => startEdit(product)} className="p-2 glass rounded-xl hover:bg-white/20"><Edit2 size={12} /></button>
+                                <button onClick={() => handleDelete(product.id)} className="p-2 glass bg-red-500/10 rounded-xl hover:bg-red-500/30 text-red-400"><Trash2 size={12} /></button>
+                              </div>
+                            )}
 
-                        <button onClick={(e) => { e.stopPropagation(); addToCart(product); }} className="absolute bottom-6 right-6 p-5 glass rounded-3xl opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all hover:bg-white hover:text-black shadow-2xl">
-                          <ShoppingBag size={22} />
-                        </button>
-                      </div>
-                      <h3 className="text-lg font-bold mb-1 opacity-90">{getL(product.name)}</h3>
-                      <div className="flex items-center justify-center gap-3">
-                         {product.oldPrice && <p className="text-sm line-through opacity-40">{product.oldPrice.toLocaleString()} {t('EGP')}</p>}
-                         <p className="text-sm font-medium text-accent-pink">{product.price.toLocaleString()} {t('EGP')}</p>
-                      </div>
-                    </motion.div>
-                  ))}
-              </div>
+                            <button onClick={(e) => { e.stopPropagation(); addToCart(product); }} className="absolute bottom-4 right-4 p-3 glass rounded-2xl opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all hover:bg-white hover:text-black shadow-xl">
+                              <ShoppingBag size={18} />
+                            </button>
+                          </div>
+                          <h3 className="text-sm font-bold mb-1 opacity-80 line-clamp-1">{getL(product.name)}</h3>
+                          <div className="flex items-center justify-center gap-2">
+                             {product.oldPrice && <p className="text-[10px] line-through opacity-30">{product.oldPrice.toLocaleString()}</p>}
+                             <p className="text-xs font-bold text-accent-pink">{product.price.toLocaleString()} {t('EGP')}</p>
+                          </div>
+                        </motion.div>
+                      ))}
+                  </div>
+                </section>
+              ))
             )}
           </AnimatePresence>
         </main>
@@ -1089,19 +1134,18 @@ export default function App() {
       </AnimatePresence>
 
       {/* --- Product Detail Modal --- */}
-      {/* --- Product Detail Modal --- */}
       <AnimatePresence>
         {selectedProduct && (
-          <div className="fixed inset-0 z-[280] flex items-center justify-center p-0 lg:p-10 overflow-hidden">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedProduct(null)} className="absolute inset-0 bg-black/95 backdrop-blur-3xl" />
+          <div className="fixed inset-0 z-[500] flex items-center justify-center p-0 lg:p-10 overflow-hidden">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedProduct(null)} className="absolute inset-0 bg-black/50 backdrop-blur-xl" />
             <motion.div 
               initial={{ y: 50, opacity: 0 }} 
               animate={{ y: 0, opacity: 1 }} 
               exit={{ y: 50, opacity: 0 }} 
-              className="relative w-full h-full lg:h-[90vh] lg:max-w-7xl glass lg:rounded-[60px] shadow-4xl border-white/10 overflow-hidden grid grid-cols-1 lg:grid-cols-12"
+              className="relative w-full h-full lg:h-[90vh] lg:max-w-7xl glass lg:rounded-[60px] shadow-4xl border-none overflow-hidden grid grid-cols-1 lg:grid-cols-12 z-[510]"
               style={{ background: theme === 'dark' ? '#0a0a0c' : '#ffffff' }}
             >
-               <button onClick={() => setSelectedProduct(null)} className="absolute top-8 right-8 p-4 glass rounded-full hover:bg-white/20 z-[300] bg-black/50 text-white"><X /></button>
+               <button onClick={() => setSelectedProduct(null)} className="absolute top-6 right-6 p-4 glass rounded-full hover:bg-black/10 z-[600] text-current"><X /></button>
                
                {/* Left: Gallery */}
                <div className="lg:col-span-7 h-[50vh] lg:h-full relative bg-gray-100 dark:bg-black/40 overflow-hidden flex flex-col">
@@ -1122,7 +1166,7 @@ export default function App() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       src={selectedProduct.images ? selectedProduct.images[activeImgIdx] : selectedProduct.img} 
-                      className={`w-full h-full object-cover transition-transform duration-200 ${isZoomed ? 'scale-[2.2]' : 'scale-100'}`}
+                      className={`w-full h-full object-contain lg:object-cover transition-transform duration-200 ${isZoomed ? 'scale-[2.2]' : 'scale-100'}`}
                       style={isZoomed ? { transformOrigin: `${zoomPos.x}% ${zoomPos.y}%` } : {}}
                     />
                     {!isZoomed && (
@@ -1184,7 +1228,7 @@ export default function App() {
                     <button 
                       onClick={() => addToCart(selectedProduct)}
                       disabled={selectedProduct.stock <= 0}
-                      className={`w-full py-8 rounded-[32px] font-black uppercase tracking-[6px] transition-all shadow-4xl flex items-center justify-center gap-4 ${selectedProduct.stock > 0 ? 'bg-accent-pink text-white hover:scale-[1.03] active:scale-95' : 'bg-gray-500/20 text-gray-400 cursor-not-allowed'}`}
+                      className={`w-full py-6 rounded-[32px] font-black uppercase tracking-[6px] transition-all shadow-4xl flex items-center justify-center gap-4 ${selectedProduct.stock > 0 ? 'bg-accent-pink text-white hover:scale-[1.03] active:scale-95' : 'bg-gray-500/20 text-gray-400 cursor-not-allowed'}`}
                     >
                       <ShoppingBag size={24} />
                       {t('ADD_TO_CART')}
