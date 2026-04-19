@@ -120,7 +120,7 @@ interface CartItem {
   quantity: number;
 }
 
-interface Notification {
+interface ToastMessage {
   id: string;
   type: 'success' | 'error' | 'info';
   message: { EN: string; AR: string };
@@ -210,15 +210,42 @@ const TRANSLATIONS = {
   ADMIN_REMOVED: { EN: "Admin removed!", AR: "تم إزالة الأدمن!" },
 };
 
+const handleFirestoreError = (error: any, operation: 'create' | 'update' | 'delete' | 'list' | 'get' | 'write', path: string | null = null, user: any = null) => {
+  if (error.code === 'permission-denied') {
+    const errorInfo = {
+      error: "Missing or insufficient permissions",
+      operationType: operation,
+      path: path,
+      authInfo: user ? {
+        userId: user.uid,
+        email: user.email,
+        emailVerified: user.emailVerified,
+        isAnonymous: user.isAnonymous,
+        providerInfo: user.providerData.map((p: any) => ({ providerId: p.providerId, displayName: p.displayName, email: p.email }))
+      } : 'No User'
+    };
+    throw new Error(JSON.stringify(errorInfo));
+  }
+  throw error;
+};
+
 export default function App() {
   const [lang, setLang] = useState<Language>('AR');
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
   const [user, setUser] = useState<FirebaseUser | null>(null);
+
+  const getL = (obj: any, currentLang?: Language) => {
+    if (!obj) return '';
+    if (typeof obj === 'string') return obj;
+    const l = currentLang || lang;
+    return obj[l] || obj['EN'] || obj['AR'] || '';
+  };
   const [products, setProducts] = useState<Product[]>([]);
   const [activeTab, setActiveTab] = useState('COLLECTIONS');
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
@@ -277,31 +304,6 @@ export default function App() {
     const isInList = user && adminList.some(a => a.id === user.uid);
     return isRoot || isInList;
   }, [user, adminList]);
-
-const handleFirestoreError = (error: any, operation: 'create' | 'update' | 'delete' | 'list' | 'get' | 'write', path: string | null = null, user: any = null) => {
-  if (error.code === 'permission-denied') {
-    const errorInfo = {
-      error: "Missing or insufficient permissions",
-      operationType: operation,
-      path: path,
-      authInfo: user ? {
-        userId: user.uid,
-        email: user.email,
-        emailVerified: user.emailVerified,
-        isAnonymous: user.isAnonymous,
-        providerInfo: user.providerData.map((p: any) => ({ providerId: p.providerId, displayName: p.displayName, email: p.email }))
-      } : 'No User'
-    };
-    throw new Error(JSON.stringify(errorInfo));
-  }
-  throw error;
-};
-
-const getL = (obj: any, lang: Language = 'AR') => {
-  if (!obj) return '';
-  if (typeof obj === 'string') return obj;
-  return obj[lang] || obj['EN'] || obj['AR'] || '';
-};
 
   const filtered = products.filter(p => {
     const name = getL(p.name, lang);
@@ -464,6 +466,11 @@ const getL = (obj: any, lang: Language = 'AR') => {
     });
     return () => unsubscribe();
   }, [user]);
+
+  useEffect(() => {
+    document.documentElement.dir = lang === 'AR' ? 'rtl' : 'ltr';
+    document.documentElement.lang = lang === 'AR' ? 'ar' : 'en';
+  }, [lang]);
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -731,12 +738,12 @@ const getL = (obj: any, lang: Language = 'AR') => {
     }
   };
 
-  const notify = (message: { EN: string; AR: string }, type: Notification['type'] = 'success') => {
+  const notify = (message: { EN: string; AR: string }, type: ToastMessage['type'] = 'success') => {
     const id = Math.random().toString(36).substr(2, 9);
-    setNotifications(prev => [...prev, { id, type, message }]);
+    setToasts(prev => [...prev, { id, type, message }]);
     setTimeout(() => {
-      setNotifications(prev => prev.filter(n => n.id !== id));
-    }, 3000);
+      setToasts(prev => prev.filter(n => n.id !== id));
+    }, 4000);
   };
 
   const addReview = async (productId: string, rating: number, comment: string) => {
@@ -805,7 +812,7 @@ const getL = (obj: any, lang: Language = 'AR') => {
         let width = img.width;
         let height = img.height;
         
-        const MAX_DIM = 800;
+        const MAX_DIM = 1600;
         if (width > height) {
           if (width > MAX_DIM) {
             height *= MAX_DIM / width;
@@ -822,7 +829,7 @@ const getL = (obj: any, lang: Language = 'AR') => {
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         ctx?.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.5); // Lower quality to fit multiple imgs
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.95); 
         setNewProduct(prev => ({ ...prev, images: [...prev.images, dataUrl] }));
         setIsUploading(false);
       };
@@ -918,19 +925,19 @@ const getL = (obj: any, lang: Language = 'AR') => {
         )}
       </div>
 
-      {/* Notifications */}
-      <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] flex flex-col gap-3 w-full max-w-sm px-6">
+      {/* Toast Messages */}
+      <div className={`fixed top-6 ${lang === 'AR' ? 'right-6' : 'left-6'} sm:left-1/2 sm:-translate-x-1/2 z-[500] flex flex-col gap-3 w-full max-w-sm px-6 pointer-events-none`}>
         <AnimatePresence>
-          {notifications.map(n => (
-            <motion.div key={n.id} initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -20, opacity: 0 }} className="flex items-center gap-3 px-6 py-4 glass rounded-3xl shadow-2xl bg-white/10 backdrop-blur-2xl">
-              {n.type === 'success' ? <CheckCircle2 className="text-accent-green" size={18} /> : <AlertCircle className="text-accent-pink" size={18} />}
-              <span className="text-sm font-medium">{getL(n.message)}</span>
+          {toasts.map(n => (
+            <motion.div key={n.id} initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -20, opacity: 0 }} className="flex items-center gap-3 px-6 py-4 glass rounded-3xl shadow-2xl bg-white/20 backdrop-blur-2xl border-white/20 pointer-events-auto">
+              {n.type === 'success' ? <CheckCircle2 className="text-accent-green" size={18} /> : (n.type === 'error' ? <AlertCircle className="text-accent-pink" size={18} /> : <Activity className="text-blue-400" size={18} />)}
+              <span className="text-sm font-bold">{getL(n.message)}</span>
             </motion.div>
           ))}
         </AnimatePresence>
       </div>
 
-      <div className="w-full max-w-[1400px] mx-auto p-4 sm:p-8 md:p-12 relative z-10">
+      <div className="w-full max-w-[1400px] mx-auto p-4 sm:p-8 md:p-12 relative z-10" dir={lang === 'AR' ? 'rtl' : 'ltr'}>
         {/* Header */}
         <header className="flex flex-wrap items-center justify-between mb-8 sm:mb-16 gap-6 glass p-6 sm:px-10 rounded-[32px] sm:rounded-[48px] bg-white/5 border-white/10">
           <div className="flex flex-col items-center sm:items-start group cursor-pointer" onClick={() => setActiveTab('COLLECTIONS')}>
@@ -960,7 +967,7 @@ const getL = (obj: any, lang: Language = 'AR') => {
             ))}
           </nav>
 
-          <div className="flex items-center gap-4 sm:gap-6 ml-auto">
+          <div className="flex items-center gap-4 sm:gap-6 ms-auto">
             <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className={`p-2.5 glass rounded-full flex items-center justify-center transition-all ${theme === 'dark' ? 'hover:bg-yellow-500/20 text-yellow-500' : 'hover:bg-blue-500/10 text-blue-600'}`}>
               {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
             </button>
@@ -1496,7 +1503,7 @@ const getL = (obj: any, lang: Language = 'AR') => {
                             )}
                           </div>
 
-                          <div className="mt-8 lg:mt-0 lg:w-48 text-center lg:text-right border-t lg:border-t-0 lg:border-l border-white/10 pt-8 lg:pt-0 lg:pl-10">
+                          <div className={`mt-8 lg:mt-0 lg:w-48 text-center ${lang === 'AR' ? 'lg:text-left lg:border-r lg:pr-10' : 'lg:text-right lg:border-l lg:pl-10'} border-t lg:border-t-0 border-white/10 pt-8 lg:pt-0`}>
                             <p className="text-[10px] font-bold uppercase tracking-[3px] opacity-30 mb-2">{t('TOTAL')}</p>
                             <p className="text-3xl font-black text-accent-pink">{order.total.toLocaleString()} <span className="text-lg opacity-50 font-light">{t('EGP')}</span></p>
                             <a href={`https://wa.me/${settings.whatsapp}?text=${encodeURIComponent(`${lang === 'AR' ? 'أهلاً، أود الاستفسار عن طلبي رقم' : 'Hi, I want to inquire about my order #'} ${order.id}`)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 mt-6 text-[10px] font-black uppercase tracking-[3px] text-accent-green hover:underline">
@@ -1533,20 +1540,20 @@ const getL = (obj: any, lang: Language = 'AR') => {
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500" />
                             
                             {(product.isNew || product.isSale) && (
-                              <div className="absolute top-4 right-4 flex flex-col gap-1">
+                              <div className={`absolute top-4 ${lang === 'AR' ? 'left-4' : 'right-4'} flex flex-col gap-1`}>
                                 {product.isNew && <span className="bg-accent-green text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-full text-black">New</span>}
                                 {product.isSale && <span className="bg-accent-pink text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-full text-black">Sale</span>}
                               </div>
                             )}
 
                             {isAdmin && (
-                              <div className="absolute top-3 left-3 right-3 flex justify-between opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                              <div className="absolute top-3 inset-x-3 flex justify-between opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                                 <button onClick={() => startEdit(product)} className="p-2 glass rounded-xl hover:bg-white/20"><Edit2 size={12} /></button>
                                 <button onClick={() => handleDelete(product.id)} className="p-2 glass bg-red-500/10 rounded-xl hover:bg-red-500/30 text-red-400"><Trash2 size={12} /></button>
                               </div>
                             )}
 
-                            <button onClick={(e) => { e.stopPropagation(); addToCart(product); }} className="absolute bottom-4 right-4 p-3 glass rounded-2xl opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all hover:bg-white hover:text-black shadow-xl">
+                            <button onClick={(e) => { e.stopPropagation(); addToCart(product); }} className={`absolute bottom-4 ${lang === 'AR' ? 'left-4' : 'right-4'} p-3 glass rounded-2xl opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all hover:bg-white hover:text-black shadow-xl`}>
                               <ShoppingBag size={18} />
                             </button>
                           </div>
@@ -1584,7 +1591,7 @@ const getL = (obj: any, lang: Language = 'AR') => {
 
             <div className="w-full h-px bg-white/10" />
             
-            <p className="text-[10px] font-bold tracking-[4px] uppercase opacity-30">© 2024 Eleven Eleven Fashion Platform</p>
+            <p className="text-[10px] font-bold tracking-[4px] uppercase opacity-30">© 2026 Eleven Eleven Fashion Platform</p>
           </div>
           
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-accent-pink/5 blur-[120px] rounded-full pointer-events-none" />
