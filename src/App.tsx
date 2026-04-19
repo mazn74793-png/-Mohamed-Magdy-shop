@@ -56,8 +56,14 @@ interface Order {
   id: string;
   customerName: string;
   customerEmail: string;
+  customerPhone: string;
+  customerPhone2?: string;
+  address: string;
+  paymentMethod: 'insta' | 'cash';
+  locationUrl?: string;
   items: OrderItem[];
   total: number;
+  shippingFee: number;
   status: 'pending' | 'completed' | 'cancelled';
   createdAt: any;
 }
@@ -68,6 +74,8 @@ interface Settings {
   tiktok: string;
   whatsapp: string;
   siteName: string;
+  heroImage: string;
+  shippingFee: number;
   heroTitle: { EN: string; AR: string };
   heroDesc: { EN: string; AR: string };
 }
@@ -187,10 +195,14 @@ export default function App() {
     tiktok: '', 
     whatsapp: '',
     siteName: '11:11',
+    heroImage: 'https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&q=80&w=1600',
+    shippingFee: 50,
     heroTitle: { EN: TRANSLATIONS.HERO_TITLE.EN, AR: TRANSLATIONS.HERO_TITLE.AR },
     heroDesc: { EN: TRANSLATIONS.HERO_DESC.EN, AR: TRANSLATIONS.HERO_DESC.AR }
   });
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const [checkoutForm, setCheckoutForm] = useState({ phone: '', phone2: '', address: '', method: 'cash' as 'insta' | 'cash', location: '' });
+  const [isLocating, setIsLocating] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [rating, setRating] = useState(5);
@@ -394,13 +406,16 @@ export default function App() {
       handleLogin();
       return;
     }
+
+    if (!checkoutForm.phone || !checkoutForm.address) {
+      notify({ EN: "Please provide phone and address", AR: "برجاء التأكد من إدخال رقم الهاتف والعنوان" }, 'error');
+      return;
+    }
     
     try {
-      //shopify-like stock deduction logic
       const { writeBatch, doc } = await import('firebase/firestore');
       const batch = writeBatch(db);
 
-      // Verify stock first
       for (const item of cart) {
         const prod = products.find(p => p.id === item.id);
         if (!prod || prod.stock < item.quantity) {
@@ -413,8 +428,14 @@ export default function App() {
       const orderData = {
         customerName: user.displayName || "Unknown",
         customerEmail: user.email,
+        customerPhone: checkoutForm.phone,
+        customerPhone2: checkoutForm.phone2,
+        address: checkoutForm.address,
+        paymentMethod: checkoutForm.method,
+        locationUrl: checkoutForm.location,
         items: cart.map(item => ({ id: item.id, name: item.name, price: item.price, quantity: item.quantity })),
-        total: cartTotal,
+        total: cartTotal + settings.shippingFee,
+        shippingFee: settings.shippingFee,
         status: 'pending',
         createdAt: serverTimestamp()
       };
@@ -432,6 +453,20 @@ export default function App() {
       console.error(e);
       notify({ EN: e.message || "Checkout failed", AR: e.message || "فشل الدفع" }, 'error');
     }
+  };
+
+  const shareLocation = () => {
+    if (!navigator.geolocation) return;
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition((pos) => {
+      const url = `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`;
+      setCheckoutForm(prev => ({ ...prev, location: url }));
+      setIsLocating(false);
+      notify({ EN: "Location captured!", AR: "تم تحديد موقعك بنجاح!" });
+    }, () => {
+      setIsLocating(false);
+      notify({ EN: "Location blocked", AR: "تم رفض الوصول للمكان" }, 'error');
+    });
   };
 
   const updateSettings = async () => {
@@ -704,11 +739,11 @@ export default function App() {
         </header>
 
         {/* Hero Section */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative h-[250px] sm:h-[400px] mb-12 sm:mb-20 rounded-[48px] overflow-hidden group shadow-3xl">
-          <img src="https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&q=80&w=1600" className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent flex flex-col justify-center p-10 sm:p-20">
-            <motion.h1 initial={{ x: -20 }} animate={{ x: 0 }} transition={{ delay: 0.3 }} className="text-4xl sm:text-7xl font-light tracking-tight mb-4">{getL(settings.heroTitle)}</motion.h1>
-            <motion.p initial={{ x: -20 }} animate={{ x: 0 }} transition={{ delay: 0.4 }} className="max-w-md text-sm sm:text-lg opacity-80 font-light leading-relaxed mb-8">{getL(settings.heroDesc)}</motion.p>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative h-[300px] sm:h-[450px] mb-12 sm:mb-20 rounded-[48px] overflow-hidden group shadow-3xl">
+          <img src={settings.heroImage || "https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&q=80&w=1600"} className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/30 to-transparent flex flex-col justify-center p-10 sm:p-20 text-white">
+            <motion.h1 initial={{ x: -20 }} animate={{ x: 0 }} transition={{ delay: 0.3 }} className="text-4xl sm:text-7xl font-light tracking-tight mb-4 drop-shadow-2xl">{getL(settings.heroTitle)}</motion.h1>
+            <motion.p initial={{ x: -20 }} animate={{ x: 0 }} transition={{ delay: 0.4 }} className="max-w-md text-sm sm:text-lg opacity-90 font-light leading-relaxed mb-8 drop-shadow-lg">{getL(settings.heroDesc)}</motion.p>
           </div>
         </motion.div>
 
@@ -716,28 +751,28 @@ export default function App() {
         <AnimatePresence>
           {isAdmin && isAdminPanelOpen && (
             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden mb-12">
-              <div className="glass p-8 sm:p-12 rounded-[48px] bg-white/5 border-white/10 text-white">
+              <div className="glass p-8 sm:p-12 rounded-[48px] bg-[#12121a] border-white/10 text-white shadow-4xl shadow-black/40">
                 <div className="flex flex-col gap-8 mb-12">
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
                     <h2 className="text-2xl font-black tracking-widest flex items-center gap-3 italic text-accent-pink">
                       <LayoutDashboard size={28} /> {t('ADMIN_PANEL')}
                     </h2>
                     <div className="flex gap-4">
-                      <div className="px-6 py-3 glass rounded-2xl bg-white/5 border-white/10 text-center">
+                      <div className="px-6 py-3 glass bg-white/5 border-white/10 text-center rounded-2xl">
                         <p className="text-[10px] font-bold uppercase opacity-40 mb-1">{t('ACTIVE_ITEMS')}</p>
                         <p className="text-xl font-black text-accent-green">{products.length}</p>
                       </div>
-                      <div className="px-6 py-3 glass rounded-2xl bg-white/5 border-white/10 text-center">
+                      <div className="px-6 py-3 glass bg-white/5 border-white/10 text-center rounded-2xl">
                         <p className="text-[10px] font-bold uppercase opacity-40 mb-1">{t('ORDERS')}</p>
                         <p className="text-xl font-black text-accent-pink">{orders.length}</p>
                       </div>
                     </div>
-                    <button onClick={() => setIsAdminPanelOpen(false)} className="p-2 hover:bg-white/10 rounded-full"><X /></button>
+                    <button onClick={() => setIsAdminPanelOpen(false)} className="p-2 hover:bg-white/10 rounded-full text-white/50 hover:text-white transition-colors"><X /></button>
                   </div>
 
                   <div className="flex gap-4 border-b border-white/10 pb-4 overflow-x-auto custom-scrollbar">
                     {['DASHBOARD', 'PRODUCTS', 'ORDERS', 'SETTINGS'].map(tab => (
-                      <button key={tab} onClick={() => setAdminTab(tab as any)} className={`px-6 py-2 rounded-full text-[10px] font-black tracking-widest transition-all ${adminTab === tab ? (theme === 'dark' ? 'bg-white text-black' : 'bg-accent-pink text-white') : 'opacity-40 hover:opacity-100'}`}>
+                      <button key={tab} onClick={() => setAdminTab(tab as any)} className={`px-6 py-2 rounded-full text-[10px] font-black tracking-widest transition-all ${adminTab === tab ? 'bg-accent-pink text-white shadow-lg' : 'opacity-40 hover:opacity-100 text-white'}`}>
                         {t(`TAB_${tab}` as any)}
                       </button>
                     ))}
@@ -794,7 +829,7 @@ export default function App() {
                 )}
 
                 {adminTab === 'PRODUCTS' && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-12">
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-12 text-white">
                     <div className="flex items-center justify-between border-b border-white/10 pb-6 mb-8">
                        <h3 className="text-2xl font-bold tracking-tight italic">{isEditing ? t('EDIT') : t('PUBLISH')}</h3>
                        {isEditing && (
@@ -810,21 +845,21 @@ export default function App() {
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <label className="text-[10px] font-bold tracking-widest uppercase opacity-50">Title (EN)</label>
-                            <input type="text" className="glass-input" value={newProduct.titleEN} onChange={e => setNewProduct({...newProduct, titleEN: e.target.value})} placeholder="English" />
+                            <input type="text" className="glass-input !bg-white/5 !text-white" value={newProduct.titleEN} onChange={e => setNewProduct({...newProduct, titleEN: e.target.value})} placeholder="English" />
                           </div>
                           <div className="space-y-2">
                             <label className="text-[10px] font-bold tracking-widest uppercase opacity-50">العنوان (AR)</label>
-                            <input type="text" className="glass-input" value={newProduct.titleAR} onChange={e => setNewProduct({...newProduct, titleAR: e.target.value})} placeholder="العربية" />
+                            <input type="text" className="glass-input !bg-white/5 !text-white" value={newProduct.titleAR} onChange={e => setNewProduct({...newProduct, titleAR: e.target.value})} placeholder="العربية" />
                           </div>
                         </div>
                         <div className="grid grid-cols-1 gap-4">
                           <div className="space-y-2">
                             <label className="text-[10px] font-bold tracking-widest uppercase opacity-50">Description (EN)</label>
-                            <textarea className="glass-input h-24 py-4" value={newProduct.descEN} onChange={e => setNewProduct({...newProduct, descEN: e.target.value})} placeholder="Exclusive Summer Collection Details..." />
+                            <textarea className="glass-input !bg-white/5 !text-white h-24 py-4" value={newProduct.descEN} onChange={e => setNewProduct({...newProduct, descEN: e.target.value})} placeholder="Exclusive Summer Collection Details..." />
                           </div>
                           <div className="space-y-2">
                             <label className="text-[10px] font-bold tracking-widest uppercase opacity-50">الوصف (AR)</label>
-                            <textarea className="glass-input h-24 py-4" value={newProduct.descAR} onChange={e => setNewProduct({...newProduct, descAR: e.target.value})} placeholder="تفاصيل المجموعة الصيفية الحصرية..." />
+                            <textarea className="glass-input !bg-white/5 !text-white h-24 py-4" value={newProduct.descAR} onChange={e => setNewProduct({...newProduct, descAR: e.target.value})} placeholder="تفاصيل المجموعة الصيفية الحصرية..." />
                           </div>
                         </div>
                       </div>
@@ -833,21 +868,21 @@ export default function App() {
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <label className="text-[10px] font-bold tracking-widest uppercase opacity-50">Price</label>
-                            <input type="number" className="glass-input" value={newProduct.price} onChange={e => setNewProduct({...newProduct, price: e.target.value})} placeholder="0.00" />
+                            <input type="number" className="glass-input !bg-white/5 !text-white" value={newProduct.price} onChange={e => setNewProduct({...newProduct, price: e.target.value})} placeholder="0.00" />
                           </div>
                           <div className="space-y-2">
                              <label className="text-[10px] font-bold tracking-widest uppercase opacity-50">{t('STOCK')}</label>
-                             <input type="number" className="glass-input" value={newProduct.stock} onChange={e => setNewProduct({...newProduct, stock: e.target.value})} placeholder="10" />
+                             <input type="number" className="glass-input !bg-white/5 !text-white" value={newProduct.stock} onChange={e => setNewProduct({...newProduct, stock: e.target.value})} placeholder="10" />
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                            <div className="space-y-2">
                             <label className="text-[10px] font-bold tracking-widest uppercase opacity-50">Old Price</label>
-                            <input type="number" className="glass-input" value={newProduct.oldPrice} onChange={e => setNewProduct({...newProduct, oldPrice: e.target.value})} placeholder="0.00" />
+                            <input type="number" className="glass-input !bg-white/5 !text-white" value={newProduct.oldPrice} onChange={e => setNewProduct({...newProduct, oldPrice: e.target.value})} placeholder="0.00" />
                           </div>
                           <div className="space-y-2">
                             <label className="text-[10px] font-bold tracking-widest uppercase opacity-50">Category (EN)</label>
-                            <input type="text" className="glass-input" value={newProduct.catEN} onChange={e => setNewProduct({...newProduct, catEN: e.target.value})} placeholder="e.g. Dresses" />
+                            <input type="text" className="glass-input !bg-white/5 !text-white" value={newProduct.catEN} onChange={e => setNewProduct({...newProduct, catEN: e.target.value})} placeholder="e.g. Dresses" />
                           </div>
                         </div>
                         <div className="space-y-4">
@@ -903,35 +938,47 @@ export default function App() {
                   </motion.div>
                 )}
                 {adminTab === 'ORDERS' && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                    <h3 className="text-xl font-bold italic">{t('ORDER_LIST')}</h3>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left min-w-[700px]">
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="overflow-x-auto pb-10">
+                    <div className="min-w-[800px]">
+                      <table className="w-full text-left" dir={lang === 'AR' ? 'rtl' : 'ltr'}>
                         <thead>
                           <tr className="border-b border-white/10">
                             <th className="py-4 text-[10px] uppercase opacity-40">{t('CUSTOMER')}</th>
                             <th className="py-4 text-[10px] uppercase opacity-40">{t('ITEMS')}</th>
                             <th className="py-4 text-[10px] uppercase opacity-40">{t('TOTAL')}</th>
                             <th className="py-4 text-[10px] uppercase opacity-40">{t('STATUS')}</th>
+                            <th className="py-4 text-[10px] uppercase opacity-40">Actions</th>
                           </tr>
                         </thead>
                         <tbody>
                           {orders.map(order => (
-                            <tr key={order.id} className="border-b border-white/5">
+                            <tr key={order.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                               <td className="py-4">
                                 <div className="flex flex-col">
-                                  <span className="font-bold">{order.customerName}</span>
-                                  <span className="text-xs opacity-50">{order.customerEmail}</span>
+                                  <span className="font-bold text-sm text-white">{order.customerName}</span>
+                                  <span className="text-[10px] opacity-70 text-white/70">{order.customerPhone}</span>
+                                  <span className="text-[10px] opacity-50 text-white/50">{order.address}</span>
                                 </div>
                               </td>
-                              <td className="py-4 text-xs">{order.items.map(item => `${getL(item.name)} (x${item.quantity})`).join(', ')}</td>
-                              <td className="py-4 font-black text-accent-pink">{order.total} {t('EGP')}</td>
+                              <td className="py-4 text-[11px] max-w-[200px] truncate text-white/80">{order.items.map(item => `${getL(item.name)} (x${item.quantity})`).join(', ')}</td>
                               <td className="py-4">
-                                <select value={order.status} onChange={async (e) => await updateDoc(doc(db, 'orders', order.id), { status: e.target.value })} className="bg-black/20 border border-white/10 rounded-lg px-3 py-1 text-xs">
-                                  <option value="pending">Pending</option>
-                                  <option value="completed">Completed</option>
-                                  <option value="cancelled">Cancelled</option>
+                                <div className="flex flex-col">
+                                  <span className="font-black text-accent-pink text-xs">{order.total} {t('EGP')}</span>
+                                  <span className="text-[9px] opacity-40 text-white/40">Method: {order.paymentMethod}</span>
+                                </div>
+                              </td>
+                              <td className="py-4">
+                                <select value={order.status} onChange={async (e) => await updateDoc(doc(db, 'orders', order.id), { status: e.target.value })} className="bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-[10px] text-white outline-none">
+                                  <option value="pending" className="bg-gray-900">Pending</option>
+                                  <option value="completed" className="bg-gray-900">Completed</option>
+                                  <option value="cancelled" className="bg-gray-900">Cancelled</option>
                                 </select>
+                              </td>
+                              <td className="py-4">
+                                <div className="flex gap-2">
+                                  <a href={`https://wa.me/${order.customerPhone}`} target="_blank" rel="noreferrer" className="p-2 glass bg-white/10 text-accent-pink rounded-lg hover:scale-110 transition-transform"><MessageCircle size={14} /></a>
+                                  {order.locationUrl && <a href={order.locationUrl} target="_blank" rel="noreferrer" className="p-2 glass bg-white/10 text-accent-pink rounded-lg hover:scale-110 transition-transform"><Globe size={14} /></a>}
+                                </div>
                               </td>
                             </tr>
                           ))}
@@ -942,49 +989,51 @@ export default function App() {
                 )}
 
                 {adminTab === 'SETTINGS' && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-12 max-w-2xl">
-                    <div className="space-y-6">
-                      <h3 className="text-xl font-bold italic">Brand Identity</h3>
-                      <div className="grid grid-cols-1 gap-6">
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-bold uppercase opacity-50">Site Name</label>
-                          <input type="text" className="glass-input" value={settings.siteName} onChange={e => setSettings({...settings, siteName: e.target.value})} placeholder="e.g. 11:11 Fashion" />
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-12 max-w-4xl text-white">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                      <div className="space-y-6">
+                        <h3 className="text-xl font-bold italic">Brand Identity</h3>
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold uppercase opacity-50">Site Name</label>
+                            <input type="text" className="glass-input !bg-white/5 !text-white" value={settings.siteName} onChange={e => setSettings({...settings, siteName: e.target.value})} />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold uppercase opacity-50">Hero Image URL</label>
+                            <input type="text" className="glass-input !bg-white/5 !text-white" value={settings.heroImage} onChange={e => setSettings({...settings, heroImage: e.target.value})} />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold uppercase opacity-50">Default Shipping Fee (EGP)</label>
+                            <input type="number" className="glass-input !bg-white/5 !text-white" value={settings.shippingFee} onChange={e => setSettings({...settings, shippingFee: parseInt(e.target.value)})} />
+                          </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <label className="text-[10px] font-bold uppercase opacity-50">Hero Title (EN)</label>
-                            <input type="text" className="glass-input" value={settings.heroTitle.EN} onChange={e => setSettings({...settings, heroTitle: {...settings.heroTitle, EN: e.target.value}})} />
+                      </div>
+
+                      <div className="space-y-6">
+                        <h3 className="text-xl font-bold italic">Hero Content</h3>
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 gap-2">
+                            <input type="text" className="glass-input !bg-white/5 !text-white text-xs" value={settings.heroTitle.EN} onChange={e => setSettings({...settings, heroTitle: {...settings.heroTitle, EN: e.target.value}})} placeholder="Title EN" />
+                            <input type="text" className="glass-input !bg-white/5 !text-white text-xs" value={settings.heroTitle.AR} onChange={e => setSettings({...settings, heroTitle: {...settings.heroTitle, AR: e.target.value}})} placeholder="العنوان بالعربية" />
                           </div>
-                          <div className="space-y-2">
-                            <label className="text-[10px] font-bold uppercase opacity-50">Hero Title (AR)</label>
-                            <input type="text" className="glass-input" value={settings.heroTitle.AR} onChange={e => setSettings({...settings, heroTitle: {...settings.heroTitle, AR: e.target.value}})} />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <label className="text-[10px] font-bold uppercase opacity-50">Hero Desc (EN)</label>
-                            <textarea className="glass-input min-h-[100px] resize-none" value={settings.heroDesc.EN} onChange={e => setSettings({...settings, heroDesc: {...settings.heroDesc, EN: e.target.value}})} />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-[10px] font-bold uppercase opacity-50">Hero Desc (AR)</label>
-                            <textarea className="glass-input min-h-[100px] resize-none" value={settings.heroDesc.AR} onChange={e => setSettings({...settings, heroDesc: {...settings.heroDesc, AR: e.target.value}})} />
-                          </div>
+                          <textarea className="glass-input !bg-white/5 !text-white text-xs h-20" value={settings.heroDesc.AR} onChange={e => setSettings({...settings, heroDesc: {...settings.heroDesc, AR: e.target.value}})} placeholder="الوصف بالعربية" />
+                          <textarea className="glass-input !bg-white/5 !text-white text-xs h-20" value={settings.heroDesc.EN} onChange={e => setSettings({...settings, heroDesc: {...settings.heroDesc, EN: e.target.value}})} placeholder="Desc EN" />
                         </div>
                       </div>
                     </div>
 
                     <div className="space-y-6">
                       <h3 className="text-xl font-bold italic">{t('SOCIAL_LINKS')}</h3>
-                      <div className="grid grid-cols-2 gap-6">
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                         {['facebook', 'instagram', 'tiktok', 'whatsapp'].map(s => (
-                          <div key={s} className="space-y-2">
-                            <label className="text-[10px] font-bold uppercase opacity-50">{s}</label>
-                            <input type="text" className="glass-input" value={(settings as any)[s]} onChange={e => setSettings({...settings, [s]: e.target.value})} placeholder="URL / Number" />
+                          <div key={s} className="space-y-1">
+                            <label className="text-[9px] font-bold uppercase opacity-50">{s}</label>
+                            <input type="text" className="glass-input !bg-white/5 !text-white text-xs" value={(settings as any)[s]} onChange={e => setSettings({...settings, [s]: e.target.value})} />
                           </div>
                         ))}
                       </div>
                     </div>
-                    <button onClick={updateSettings} className="glass-btn bg-accent-pink text-white py-4 px-10 hover:scale-105 transition-all font-bold tracking-widest uppercase">{t('SAVE_SETTINGS')}</button>
+                    <button onClick={updateSettings} className="glass-btn bg-accent-pink text-white py-4 px-12 hover:scale-105 transition-all font-bold tracking-widest uppercase">{t('SAVE_SETTINGS')}</button>
                   </motion.div>
                 )}
               </div>
@@ -1314,39 +1363,85 @@ export default function App() {
                     <p className="text-2xl font-light">{t('EMPTY_CART')}</p>
                   </div>
                 ) : (
-                  cart.map(item => (
-                    <motion.div layout key={item.id} className="flex gap-6 p-6 glass rounded-[32px] group">
-                      <img src={item.img} className="w-24 h-32 object-cover rounded-2xl shadow-lg" />
-                      <div className="flex-1">
-                        <div className="flex justify-between items-start mb-1">
-                           <p className="font-bold text-base">{getL(item.name)}</p>
-                           <button onClick={() => removeFromCart(item.id)} className="text-red-500/20 hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
+                  <>
+                    {cart.map(item => (
+                      <motion.div layout key={item.id} className="flex gap-6 p-6 glass rounded-[32px] group">
+                        <img src={item.img} className="w-24 h-32 object-cover rounded-2xl shadow-lg" />
+                        <div className="flex-1">
+                          <div className="flex justify-between items-start mb-1">
+                             <p className="font-bold text-base">{getL(item.name)}</p>
+                             <button onClick={() => removeFromCart(item.id)} className="text-red-500/20 hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
+                          </div>
+                          <p className="text-accent-pink text-sm mb-4">{item.price} {t('EGP')}</p>
+                          <div className="flex items-center gap-4">
+                            <button onClick={() => updateCartQuantity(item.id, -1)} className="w-10 h-10 rounded-xl glass flex items-center justify-center hover:bg-white/10">-</button>
+                            <span className="text-base font-bold w-4 text-center">{item.quantity}</span>
+                            <button onClick={() => updateCartQuantity(item.id, 1)} className="w-10 h-10 rounded-xl glass flex items-center justify-center hover:bg-white/10">+</button>
+                          </div>
                         </div>
-                        <p className="text-accent-pink text-sm mb-4">{item.price} {t('EGP')}</p>
-                        <div className="flex items-center gap-4">
-                          <button onClick={() => updateCartQuantity(item.id, -1)} className="w-10 h-10 rounded-xl glass flex items-center justify-center hover:bg-white/10">-</button>
-                          <span className="text-base font-bold w-4 text-center">{item.quantity}</span>
-                          <button onClick={() => updateCartQuantity(item.id, 1)} className="w-10 h-10 rounded-xl glass flex items-center justify-center hover:bg-white/10">+</button>
+                      </motion.div>
+                    ))}
+                    
+                    <div className="mt-12 space-y-4 p-8 glass rounded-[40px] bg-black/5 dark:bg-white/5">
+                        <h4 className="text-sm font-black uppercase tracking-widest border-b border-black/5 pb-4 mb-4">{lang === 'AR' ? 'بيانات الشحن' : 'Shipping Details'}</h4>
+                        <input className="glass-input !bg-white/50 text-sm" placeholder={lang === 'AR' ? 'العنوان بالتفصيل' : 'Detailed Address'} value={checkoutForm.address} onChange={e => setCheckoutForm({...checkoutForm, address: e.target.value})} />
+                        <div className="grid grid-cols-2 gap-4">
+                          <input className="glass-input !bg-white/50 text-sm" placeholder={lang === 'AR' ? 'رقم الهاتف' : 'Phone'} value={checkoutForm.phone} onChange={e => setCheckoutForm({...checkoutForm, phone: e.target.value})} />
+                          <input className="glass-input !bg-white/50 text-sm" placeholder={lang === 'AR' ? 'رقم احتياطي' : 'Backup Phone'} value={checkoutForm.phone2} onChange={e => setCheckoutForm({...checkoutForm, phone2: e.target.value})} />
                         </div>
-                      </div>
-                    </motion.div>
-                  ))
+                        
+                        <div className="flex items-center gap-3 py-2">
+                           <button onClick={shareLocation} disabled={isLocating} className="flex-1 py-3 glass rounded-2xl bg-accent-pink/5 text-accent-pink text-[10px] font-bold uppercase flex items-center justify-center gap-2 hover:bg-accent-pink/10">
+                              <Globe size={14} /> {isLocating ? (lang === 'AR' ? 'جاري التحديد...' : 'Locating...') : (lang === 'AR' ? 'إرسال الموقع الحالي (GPS)' : 'Share GPS Location')}
+                           </button>
+                        </div>
+
+                        <h4 className="text-xs font-black uppercase tracking-widest pt-4">{lang === 'AR' ? 'طريقة الدفع' : 'Payment Method'}</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                           <button onClick={() => setCheckoutForm({...checkoutForm, method: 'cash'})} className={`py-4 rounded-3xl text-[10px] font-black uppercase border transition-all ${checkoutForm.method === 'cash' ? 'bg-accent-pink text-white border-accent-pink shadow-xl' : 'glass opacity-40 border-transparent'}`}>Cash / كاش</button>
+                           <button onClick={() => setCheckoutForm({...checkoutForm, method: 'insta'})} className={`py-4 rounded-3xl text-[10px] font-black uppercase border transition-all ${checkoutForm.method === 'insta' ? 'bg-[#9333ea] text-white border-[#9333ea] shadow-xl' : 'glass opacity-40 border-transparent'}`}>InstaPay</button>
+                        </div>
+                    </div>
+                  </>
                 )}
               </div>
 
               {cart.length > 0 && (
                 <div className="mt-12 pt-12 border-t border-white/10">
+                  <div className="space-y-2 mb-6 opacity-60 text-xs font-bold uppercase tracking-widest">
+                    <div className="flex justify-between">
+                       <span>{lang === 'AR' ? 'سعر المنتجات' : 'Subtotal'}</span>
+                       <span>{cartTotal.toLocaleString()} {t('EGP')}</span>
+                    </div>
+                    <div className="flex justify-between">
+                       <span>{lang === 'AR' ? 'سعر التوصيل' : 'Shipping'}</span>
+                       <span>{settings.shippingFee} {t('EGP')}</span>
+                    </div>
+                  </div>
                   <div className="flex items-center justify-between mb-8">
                     <span className="text-lg opacity-50 uppercase tracking-[4px]">{t('TOTAL')}</span>
-                    <span className="text-4xl font-black text-accent-pink">{cartTotal.toLocaleString()} {t('EGP')}</span>
+                    <span className="text-4xl font-black text-accent-pink">{(cartTotal + settings.shippingFee).toLocaleString()} {t('EGP')}</span>
                   </div>
-                  <button onClick={handleCheckout} className="w-full py-6 bg-white text-black rounded-[24px] font-black uppercase tracking-[4px] hover:scale-[1.02] active:scale-95 transition-all shadow-4xl">{t('CHECKOUT')}</button>
+                  <button onClick={handleCheckout} className="w-full py-6 bg-accent-pink text-white rounded-[24px] font-black uppercase tracking-[4px] hover:scale-[1.02] active:scale-95 transition-all shadow-4xl">{t('CHECKOUT')}</button>
                 </div>
               )}
             </motion.aside>
           </>
         )}
       </AnimatePresence>
+
+      {/* Floating WhatsApp for Customer */}
+      <a 
+        href={`https://wa.me/${settings.whatsapp}`} 
+        target="_blank" 
+        rel="noreferrer" 
+        className={`fixed bottom-6 ${lang === 'AR' ? 'left-6' : 'right-6'} z-[300] w-16 h-16 bg-[#25D366] text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all group`}
+      >
+        <MessageCircle size={32} />
+        <span className={`absolute ${lang === 'AR' ? 'left-20' : 'right-20'} bg-black text-white text-[10px] font-black uppercase tracking-widest py-2 px-4 rounded-full opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-xl`}>
+          Contact 11:11
+        </span>
+      </a>
 
       {/* Decorative Background - REMOVED AS IT IS NOW DYNAMIC AT TOP */}
 
