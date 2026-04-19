@@ -62,6 +62,30 @@
       },
       "required": ["userId", "title", "message", "read", "createdAt"]
     },
+    "Admin": {
+      "title": "Admin",
+      "description": "A user with administrative privileges.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "uid": { "type": "string" },
+        "addedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "uid", "addedBy", "createdAt"]
+    },
+    "User": {
+      "title": "User",
+      "description": "A registered user in the platform.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "lastSeen": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "displayName"]
+    },
     "Settings": {
       "title": "Settings",
       "description": "Global application settings and social links.",
@@ -90,6 +114,14 @@
     "/notifications/{notificationId}": {
       "schema": "Notification",
       "description": "Collection of user notifications."
+    },
+    "/admins/{adminUid}": {
+      "schema": "Admin",
+      "description": "Collection of authorized administrators."
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Collection of all registered users."
     }
   }
 }

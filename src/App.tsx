@@ -11,7 +11,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, getDocFromServer, setDoc, where, increment } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, getDocFromServer, setDoc, where, increment, getDocs } from 'firebase/firestore';
 import firebaseConfigLocal from '../firebase-applet-config.json';
 
 // --- Initialization ---
@@ -183,6 +183,7 @@ const TRANSLATIONS = {
   TAB_ORDERS: { EN: "Orders", AR: "الطلبات" },
   TAB_SETTINGS: { EN: "Settings", AR: "الإعدادات" },
   TAB_DASHBOARD: { EN: "Dashboard", AR: "لوحة التحكم" },
+  TAB_ADMINS: { EN: "Team", AR: "الفريق" },
   TOTAL_REVENUE: { EN: "Total Revenue", AR: "إجمالي الأرباح" },
   FOR_YOU: { EN: "For You", AR: "لك" },
   SUBTOTAL: { EN: "Subtotal", AR: "المجموع" },
@@ -198,7 +199,15 @@ const TRANSLATIONS = {
   STOCK: { EN: "Stock Quantity", AR: "الكمية المتوفرة" },
   OUT_OF_STOCK: { EN: "Out of Stock", AR: "نفذت الكمية" },
   BUY_NOW: { EN: "Buy Now", AR: "اشتري الآن" },
-  IN_STOCK: { EN: "In Stock", AR: "متوفر" }
+  IN_STOCK: { EN: "In Stock", AR: "متوفر" },
+  ADMIN_MANAGEMENT: { EN: "Team Management", AR: "إدارة الفريق" },
+  ADD_ADMIN: { EN: "Add New Admin", AR: "إضافة أدمن جديد" },
+  ADMIN_EMAIL_PLACEHOLDER: { EN: "Enter registered user email...", AR: "أدخل بريد المستخدم المسجل..." },
+  TEAM_LIST: { EN: "Administrators List", AR: "قائمة المديرين" },
+  REMOVE: { EN: "Remove", AR: "إزالة" },
+  USER_NOT_FOUND: { EN: "User not found. They must login once first.", AR: "المستخدم غير موجود. يجب أن يسجل دخوله مرة واحدة أولاً." },
+  ADMIN_ADDED: { EN: "Admin added successfully!", AR: "تم إضافة الأدمن بنجاح!" },
+  ADMIN_REMOVED: { EN: "Admin removed!", AR: "تم إزالة الأدمن!" },
 };
 
 export default function App() {
@@ -213,7 +222,7 @@ export default function App() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
-  const [adminTab, setAdminTab] = useState<'PRODUCTS' | 'ORDERS' | 'SETTINGS' | 'DASHBOARD'>('DASHBOARD');
+  const [adminTab, setAdminTab] = useState<'PRODUCTS' | 'ORDERS' | 'SETTINGS' | 'DASHBOARD' | 'ADMINS'>('DASHBOARD');
   const [orders, setOrders] = useState<Order[]>([]);
   const [userOrders, setUserOrders] = useState<Order[]>([]);
   const [settings, setSettings] = useState<Settings>({ 
@@ -230,6 +239,8 @@ export default function App() {
   });
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const [adminList, setAdminList] = useState<any[]>([]); // Full objects for management UI
+  const [adminEmailInput, setAdminEmailInput] = useState('');
   const [checkoutForm, setCheckoutForm] = useState({ phone: '', phone2: '', address: '', method: 'cash' as 'insta' | 'cash', location: '' });
   const [isLocating, setIsLocating] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -262,8 +273,10 @@ export default function App() {
     return entry[lang] || entry['EN'] || key;
   };
   const isAdmin = useMemo(() => {
-    return user && user.email === ADMIN_EMAIL && user.emailVerified;
-  }, [user]);
+    const isRoot = user && user.email === ADMIN_EMAIL && user.emailVerified;
+    const isInList = user && adminList.some(a => a.id === user.uid);
+    return isRoot || isInList;
+  }, [user, adminList]);
 
 const handleFirestoreError = (error: any, operation: 'create' | 'update' | 'delete' | 'list' | 'get' | 'write', path: string | null = null, user: any = null) => {
   if (error.code === 'permission-denied') {
@@ -328,7 +341,21 @@ const getL = (obj: any, lang: Language = 'AR') => {
 
   // --- Effects ---
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => setUser(u));
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
+      setUser(u);
+      if (u) {
+        try {
+          await setDoc(doc(db, 'users', u.uid), {
+            email: u.email,
+            displayName: u.displayName,
+            photoURL: u.photoURL,
+            lastSeen: serverTimestamp()
+          }, { merge: true });
+        } catch (e) {
+          console.error("Error updating user record:", e);
+        }
+      }
+    });
     // Connection test
     const testConnection = async () => {
       try { 
@@ -422,6 +449,21 @@ const getL = (obj: any, lang: Language = 'AR') => {
     });
     return () => unsubscribe();
   }, [isAdmin]);
+
+  useEffect(() => {
+    if (!user) {
+      setAdminList([]);
+      return;
+    }
+    // Note: This snapshot will fail if not already an admin (except for root admin)
+    // but that's handled by Firebase rules and we catch the error.
+    const unsubscribe = onSnapshot(collection(db, 'admins'), (snapshot) => {
+      setAdminList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (err) => {
+      if (err.code !== 'permission-denied') console.error("Admin List Fetch Error:", err);
+    });
+    return () => unsubscribe();
+  }, [user]);
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -622,6 +664,45 @@ const getL = (obj: any, lang: Language = 'AR') => {
       notify({ EN: "Message sent", AR: "تم إرسال الرسالة" });
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleAddAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminEmailInput.trim()) return;
+    try {
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('email', '==', adminEmailInput.trim().toLowerCase()));
+      const snap = await getDocs(q);
+      
+      if (snap.empty) {
+        notify(TRANSLATIONS.USER_NOT_FOUND, 'error');
+        return;
+      }
+
+      const userDoc = snap.docs[0];
+      const userData = userDoc.data();
+      
+      await setDoc(doc(db, 'admins', userDoc.id), {
+        email: userData.email,
+        uid: userDoc.id,
+        addedBy: user?.email,
+        createdAt: serverTimestamp()
+      });
+
+      notify(TRANSLATIONS.ADMIN_ADDED, 'success');
+      setAdminEmailInput('');
+    } catch (err) {
+      handleFirestoreError(err, 'write', 'admins', user);
+    }
+  };
+
+  const handleRemoveAdmin = async (uid: string) => {
+    try {
+      await deleteDoc(doc(db, 'admins', uid));
+      notify(TRANSLATIONS.ADMIN_REMOVED, 'success');
+    } catch (err) {
+      handleFirestoreError(err, 'delete', `admins/${uid}`, user);
     }
   };
 
@@ -958,7 +1039,7 @@ const getL = (obj: any, lang: Language = 'AR') => {
                   </div>
 
                   <div className="flex gap-4 border-b border-white/10 pb-4 overflow-x-auto custom-scrollbar">
-                    {['DASHBOARD', 'PRODUCTS', 'ORDERS', 'SETTINGS'].map(tab => (
+                    {['DASHBOARD', 'PRODUCTS', 'ORDERS', 'SETTINGS', 'ADMINS'].map(tab => (
                       <button key={tab} onClick={() => setAdminTab(tab as any)} className={`px-6 py-2 rounded-full text-[10px] font-black tracking-widest transition-all ${adminTab === tab ? 'bg-accent-pink text-white shadow-lg' : 'opacity-40 hover:opacity-100 text-white'}`}>
                         {t(`TAB_${tab}` as any)}
                       </button>
@@ -1236,6 +1317,81 @@ const getL = (obj: any, lang: Language = 'AR') => {
                       </div>
                     </div>
                     <button onClick={updateSettings} className="glass-btn bg-accent-pink text-white py-4 px-12 hover:scale-105 transition-all font-bold tracking-widest uppercase">{t('SAVE_SETTINGS')}</button>
+                  </motion.div>
+                )}
+
+                {adminTab === 'ADMINS' && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-12 max-w-4xl text-white">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                      <div className="space-y-8">
+                        <div className="flex items-center gap-4">
+                           <div className="p-3 bg-accent-pink/20 text-accent-pink rounded-2xl">
+                              <Users size={24} />
+                           </div>
+                           <h3 className="text-xl font-black uppercase tracking-widest">{t('ADMIN_MANAGEMENT')}</h3>
+                        </div>
+                        
+                        <form onSubmit={handleAddAdmin} className="space-y-4">
+                           <div className="space-y-2">
+                              <label className="text-[10px] font-black uppercase tracking-[3px] opacity-40">{t('ADD_ADMIN')}</label>
+                              <div className="flex gap-2">
+                                 <input 
+                                   type="email" 
+                                   required
+                                   value={adminEmailInput}
+                                   onChange={e => setAdminEmailInput(e.target.value)}
+                                   placeholder={t('ADMIN_EMAIL_PLACEHOLDER')}
+                                   className="flex-1 glass-input !bg-white/5 !text-white !p-4"
+                                 />
+                                 <button type="submit" className="glass-btn bg-accent-pink text-white px-6 rounded-2xl hover:scale-105 active:scale-95 transition-all">
+                                    <PlusCircle size={20} />
+                                 </button>
+                              </div>
+                           </div>
+                        </form>
+                      </div>
+
+                      <div className="space-y-8">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-xl font-black uppercase tracking-widest opacity-40">{t('TEAM_LIST')}</h3>
+                          <span className="text-[10px] font-black text-accent-pink bg-accent-pink/10 px-4 py-1 rounded-full">{adminList.length + 1}</span>
+                        </div>
+                        <div className="space-y-4">
+                           {/* Always show root admin first */}
+                           <div className="glass p-6 rounded-[32px] bg-white/10 border-white/20 flex items-center justify-between">
+                              <div className="flex items-center gap-4">
+                                 <div className="w-10 h-10 rounded-full bg-accent-pink flex items-center justify-center font-black">
+                                    {ADMIN_EMAIL.charAt(0).toUpperCase()}
+                                 </div>
+                                 <div>
+                                    <p className="font-bold text-sm tracking-tight">{ADMIN_EMAIL}</p>
+                                    <p className="text-[9px] font-bold uppercase opacity-30 mt-0.5 tracking-[2px]">Owner / Root Admin</p>
+                                 </div>
+                              </div>
+                           </div>
+
+                           {adminList.map(adm => (
+                             <div key={adm.id} className="glass p-6 rounded-[32px] bg-white/5 border-white/10 flex items-center justify-between group">
+                                <div className="flex items-center gap-4">
+                                   <div className="w-10 h-10 rounded-full bg-accent-pink/50 flex items-center justify-center font-black">
+                                      {adm.email.charAt(0).toUpperCase()}
+                                   </div>
+                                   <div>
+                                      <p className="font-bold text-sm tracking-tight">{adm.email}</p>
+                                      <p className="text-[9px] font-bold uppercase opacity-30 mt-0.5 tracking-[2px]">Added by {adm.addedBy || 'System'}</p>
+                                   </div>
+                                </div>
+                                <button 
+                                  onClick={() => handleRemoveAdmin(adm.id)}
+                                  className="p-3 bg-red-500/10 text-red-500 rounded-2xl opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500/30"
+                                >
+                                   <Trash2 size={16} />
+                                </button>
+                             </div>
+                           ))}
+                        </div>
+                      </div>
+                    </div>
                   </motion.div>
                 )}
               </div>
