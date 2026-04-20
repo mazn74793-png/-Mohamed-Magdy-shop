@@ -861,19 +861,37 @@ export default function App() {
 
   const handleAddCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isAdmin) return;
+    if (!isAdmin) {
+      notify({ EN: "Permission denied", AR: "ليس لديك صلاحية" }, 'error');
+      return;
+    }
+    
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
     
+    const code = (formData.get('code') as string || '').toUpperCase().trim();
+    const type = formData.get('type') as 'percentage' | 'fixed';
+    const value = Number(formData.get('value'));
+    const minOrder = Number(formData.get('minOrder')) || 0;
+    const usageLimitRaw = formData.get('usageLimit');
+    const usageLimit = usageLimitRaw ? Number(usageLimitRaw) : null;
+    const expiryDateRaw = formData.get('expiryDate');
+    const expiryDate = expiryDateRaw ? new Date(expiryDateRaw as string) : null;
+
+    if (!code || isNaN(value)) {
+      notify({ EN: "Invalid inputs", AR: "بيانات غير صالحة" }, 'error');
+      return;
+    }
+
     const newCoupon = {
-      code: (formData.get('code') as string).toUpperCase(),
-      type: formData.get('type') as 'percentage' | 'fixed',
-      value: Number(formData.get('value')),
-      minOrder: Number(formData.get('minOrder')) || 0,
-      usageLimit: Number(formData.get('usageLimit')) || null,
+      code,
+      type,
+      value,
+      minOrder,
+      usageLimit: usageLimit === 0 ? null : usageLimit,
       usedCount: 0,
       isActive: true,
-      expiryDate: formData.get('expiryDate') ? new Date(formData.get('expiryDate') as string) : null,
+      expiryDate: (expiryDate && !isNaN(expiryDate.getTime())) ? expiryDate : null,
       createdAt: serverTimestamp()
     };
     
@@ -881,9 +899,12 @@ export default function App() {
       await addDoc(collection(db, 'coupons'), newCoupon);
       notify({ EN: "Coupon added!", AR: "تم إضافة الكوبون!" }, 'success');
       form.reset();
-    } catch (e) {
-      console.error(e);
-      notify({ EN: "Error adding coupon", AR: "خطأ في إضافة الكوبون" }, 'error');
+    } catch (err: any) {
+      console.error(err);
+      const msg = err.message?.includes('permission-denied') 
+        ? { EN: "Permission Denied (Rules)", AR: "خطأ في الصلاحيات (قواعد البيانات)" }
+        : { EN: "Error adding coupon", AR: "خطأ في إضافة الكوبون" };
+      notify(msg, 'error');
     }
   };
 
