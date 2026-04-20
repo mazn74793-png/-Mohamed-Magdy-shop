@@ -263,6 +263,16 @@ const TRANSLATIONS = {
   DISCOUNT: { EN: "Discount", AR: "الخصم" },
   MIN_ORDER: { EN: "Min Order", AR: "حد أدنى للطلب" },
   EXPIRY: { EN: "Expiry Date", AR: "تاريخ الانتهاء" },
+  EXPIRY_DATE: { EN: "Expiry Date", AR: "تاريخ الانتهاء" },
+  USAGE_LIMIT: { EN: "Usage Limit", AR: "حد الاستخدام" },
+  TYPE: { EN: "Type", AR: "النوع" },
+  VALUE: { EN: "Value", AR: "القيمة" },
+  PUBLISH: { EN: "Publish", AR: "نشر" },
+  COUPON: { EN: "Coupon", AR: "كوبون الخصم" },
+  SUBTOTAL: { EN: "Subtotal", AR: "المجموع الفرعي" },
+  TOTAL: { EN: "Total", AR: "الإجمالي" },
+  CHECKOUT: { EN: "Checkout", AR: "إتمام الشراء" },
+  CUSTOMER: { EN: "Customer", AR: "العميل" },
   SELECT_VARIANT: { EN: "Select Color/Size", AR: "اختار اللون/المقاس" },
   LOW_STOCK: { EN: "Low Stock!", AR: "كمية منخفضة!" },
   TOTAL_ORDERS: { EN: "Total Orders", AR: "إجمالي الطلبات" },
@@ -1640,7 +1650,7 @@ export default function App() {
 
                 {adminTab === 'COUPONS' && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-12 text-white">
-                    <form onSubmit={handleAddCoupon} className="glass p-8 rounded-[40px] bg-white/5 border-white/10 grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+                    <form onSubmit={handleAddCoupon} className="glass p-8 rounded-[40px] bg-white/5 border-white/10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-end">
                       <div className="space-y-2">
                         <label className="text-[9px] font-bold uppercase opacity-40 ">{t('COUPON_CODE')}</label>
                         <input name="code" required className="glass-input !bg-white/5 !text-white" placeholder="EID2025" />
@@ -1656,7 +1666,19 @@ export default function App() {
                         <label className="text-[9px] font-bold uppercase opacity-40 ">{t('VALUE')}</label>
                         <input name="value" type="number" required className="glass-input !bg-white/5 !text-white" />
                       </div>
-                      <button type="submit" className="glass-btn bg-accent-pink text-white h-[44px]">{t('PUBLISH')}</button>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-bold uppercase opacity-40 ">{t('MIN_ORDER')} (EGP)</label>
+                        <input name="minOrder" type="number" defaultValue="0" className="glass-input !bg-white/5 !text-white" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-bold uppercase opacity-40 ">{t('USAGE_LIMIT')}</label>
+                        <input name="usageLimit" type="number" placeholder="Optional" className="glass-input !bg-white/5 !text-white" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-bold uppercase opacity-40 ">{t('EXPIRY_DATE')}</label>
+                        <input name="expiryDate" type="date" className="glass-input !bg-white/5 !text-white" />
+                      </div>
+                      <button type="submit" className="glass-btn bg-accent-pink text-white h-[44px] lg:col-span-1">{t('PUBLISH')}</button>
                     </form>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -2598,11 +2620,53 @@ export default function App() {
                       </div>
                    </div>
 
+                   <div className="space-y-8">
+                       <div className="flex items-center gap-4">
+                          <div className="flex-1 h-px bg-current opacity-10" />
+                          <span className="text-[10px] font-black uppercase tracking-[4px] opacity-40">{t('COUPON')}</span>
+                          <div className="flex-1 h-px bg-current opacity-10" />
+                       </div>
+                       
+                       <div className="glass p-6 rounded-[32px] bg-white/5 border border-white/10 space-y-4">
+                          {!appliedCoupon ? (
+                            <div className="flex gap-2">
+                               <input 
+                                 type="text" 
+                                 placeholder={lang === 'AR' ? 'كود الخصم...' : 'Discount code...'} 
+                                 value={couponCodeInput}
+                                 onChange={e => setCouponCodeInput(e.target.value)}
+                                 className="flex-1 glass-input !bg-black/20 !text-white !p-4"
+                               />
+                               <button 
+                                 onClick={() => handleApplyCoupon(couponCodeInput)}
+                                 className="px-6 rounded-2xl bg-accent-pink text-white font-black uppercase text-[10px] tracking-widest hover:scale-105 transition-all"
+                               >
+                                  {t('APPLY')}
+                               </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between bg-accent-green/10 p-4 rounded-2xl border border-accent-green/20">
+                               <div className="flex items-center gap-3 text-accent-green">
+                                  <Tag size={16} />
+                                  <span className="text-xs font-black uppercase tracking-widest">{appliedCoupon.code}</span>
+                               </div>
+                               <button onClick={() => setAppliedCoupon(null)} className="text-accent-pink hover:scale-110 transition-all"><X size={14} /></button>
+                            </div>
+                          )}
+                       </div>
+                   </div>
+
                    <div className="pt-12 border-t border-black/10 dark:border-white/10">
                       <div className="flex justify-between items-center mb-4 opacity-50 font-bold uppercase tracking-widest text-xs">
                          <span>{lang === 'AR' ? 'سعر المنتجات' : 'Subtotal'}</span>
                          <span>{cartTotal.toLocaleString()} {t('EGP')}</span>
                       </div>
+                      {appliedCoupon && (
+                        <div className="flex justify-between items-center mb-4 text-accent-green font-bold uppercase tracking-widest text-xs">
+                           <span>{t('DISCOUNT')}</span>
+                           <span>-{(appliedCoupon.type === 'percentage' ? (cartTotal * appliedCoupon.value / 100) : appliedCoupon.value).toLocaleString()} {t('EGP')}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between items-center mb-8 font-bold uppercase tracking-widest text-xs">
                          <span className="opacity-50">{lang === 'AR' ? 'التوصيل' : 'Shipping'}</span>
                          <span className="text-accent-pink">{settings.shippingFee} {t('EGP')}</span>
@@ -2610,7 +2674,9 @@ export default function App() {
                       <div className="flex justify-between items-end mb-12">
                          <span className="text-2xl font-black uppercase tracking-[4px]">{t('TOTAL')}</span>
                          <div className="text-right">
-                            <span className="text-5xl font-black text-accent-pink">{(cartTotal + settings.shippingFee).toLocaleString()}</span>
+                            <span className="text-5xl font-black text-accent-pink">
+                               {(cartTotal - (appliedCoupon ? (appliedCoupon.type === 'percentage' ? (cartTotal * appliedCoupon.value / 100) : appliedCoupon.value) : 0) + settings.shippingFee).toLocaleString()}
+                            </span>
                             <span className="text-sm font-black opacity-30 ml-2 uppercase">EGP</span>
                          </div>
                       </div>
