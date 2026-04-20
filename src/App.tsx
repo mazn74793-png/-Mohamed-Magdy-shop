@@ -5,7 +5,7 @@
 
 /// <reference types="vite/client" />
 
-import { ShoppingBag, LayoutDashboard, PlusCircle, Activity, Box, Search, User, Trash2, X, Globe, CheckCircle2, AlertCircle, Edit2, Save, LogOut, Sun, Moon, Smartphone, MessageCircle, BarChart3, TrendingUp, Users, Calendar, ArrowRight, Star, Heart, Share2, Upload, Trash, Menu, ArrowLeft, Filter, Check, Maximize, CreditCard, Bell, Send } from 'lucide-react';
+import { ShoppingBag, LayoutDashboard, PlusCircle, Activity, Box, Search, User, Trash2, X, Globe, CheckCircle2, AlertCircle, Edit2, Save, LogOut, Sun, Moon, Smartphone, MessageCircle, BarChart3, TrendingUp, Users, Calendar, ArrowRight, Star, Heart, Share2, Upload, Trash, Menu, ArrowLeft, Filter, Check, Maximize, CreditCard, Bell, Send, Tag } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -56,11 +56,61 @@ interface Review {
   createdAt: any;
 }
 
+interface ProductVariant {
+  id: string;
+  name: { EN: string; AR: string };
+  stock: number;
+  price?: number;
+}
+
+interface Product {
+  id: string;
+  name: { EN: string; AR: string };
+  description: { EN: string; AR: string };
+  price: number;
+  oldPrice?: number;
+  stock: number;
+  category: { EN: string; AR: string };
+  categoryKey: 'dresses' | 'tops' | 'bottoms' | 'shoes' | 'accessories';
+  images: string[];
+  img: string; // fallback for old data
+  isNew?: boolean;
+  isSale?: boolean;
+  variants?: ProductVariant[];
+  createdAt: any;
+  updatedAt: any;
+  views?: number;
+}
+
+interface CartItem {
+  id: string;
+  name: { EN: string; AR: string };
+  price: number;
+  img: string;
+  quantity: number;
+  variantId?: string;
+  variantName?: { EN: string; AR: string };
+}
+
+interface Coupon {
+  id: string;
+  code: string;
+  type: 'percentage' | 'fixed';
+  value: number;
+  minOrder?: number;
+  usageLimit?: number;
+  usedCount: number;
+  expiryDate?: any;
+  isActive: boolean;
+}
+
 interface OrderItem {
   id: string;
   name: { EN: string; AR: string };
   price: number;
   quantity: number;
+  variantId?: string;
+  variantName?: { EN: string; AR: string };
 }
 
 interface Order {
@@ -76,6 +126,8 @@ interface Order {
   items: OrderItem[];
   total: number;
   shippingFee: number;
+  discountAmount?: number;
+  couponCode?: string;
   status: 'pending' | 'processing' | 'shipped' | 'completed' | 'cancelled';
   createdAt: any;
   updatedAt?: any;
@@ -103,32 +155,6 @@ interface Settings {
   shippingFee: number;
   heroTitle: { EN: string; AR: string };
   heroDesc: { EN: string; AR: string };
-}
-
-interface Product {
-  id: string;
-  name: { EN: string; AR: string };
-  description: { EN: string; AR: string };
-  price: number;
-  oldPrice?: number;
-  stock: number;
-  category: { EN: string; AR: string };
-  categoryKey: 'dresses' | 'tops' | 'bottoms' | 'shoes' | 'accessories';
-  images: string[];
-  img: string; // fallback for old data
-  isNew?: boolean;
-  isSale?: boolean;
-  createdAt: any;
-  updatedAt: any;
-  views?: number;
-}
-
-interface CartItem {
-  id: string;
-  name: { EN: string; AR: string };
-  price: number;
-  img: string;
-  quantity: number;
 }
 
 interface ToastMessage {
@@ -225,6 +251,22 @@ const TRANSLATIONS = {
   PUSH_ENABLED: { EN: "Device notifications enabled!", AR: "تم تفعيل إشعارات الجهاز!" },
   PUSH_ERROR: { EN: "Failed to enable notifications.", AR: "فشل تفعيل الإشعارات." },
   OFFLINE_NOTIFY: { EN: "Order Alerts (even when closed)", AR: "تنبيهات الطلبات (حتى والموقع مغلق)" },
+  TAB_COUPONS: { EN: "Coupons", AR: "الكوبونات" },
+  TAB_CUSTOMERS: { EN: "Customers", AR: "العملاء" },
+  VARIANTS: { EN: "Variants", AR: "المتغيرات" },
+  ADD_VARIANT: { EN: "Add Variant", AR: "إضافة متغير" },
+  VARIANT_NAME: { EN: "Variant (e.g. Red / XL)", AR: "المتغير (مثلاً: أحمر / XL)" },
+  COUPON_CODE: { EN: "Coupon Code", AR: "كود الخصم" },
+  APPLY: { EN: "Apply", AR: "تطبيق" },
+  EXPIRED: { EN: "Expired", AR: "منتهي" },
+  INVALID_COUPON: { EN: "Invalid Coupon Code", AR: "كود خصم غير صالح" },
+  DISCOUNT: { EN: "Discount", AR: "الخصم" },
+  MIN_ORDER: { EN: "Min Order", AR: "حد أدنى للطلب" },
+  EXPIRY: { EN: "Expiry Date", AR: "تاريخ الانتهاء" },
+  SELECT_VARIANT: { EN: "Select Color/Size", AR: "اختار اللون/المقاس" },
+  LOW_STOCK: { EN: "Low Stock!", AR: "كمية منخفضة!" },
+  TOTAL_ORDERS: { EN: "Total Orders", AR: "إجمالي الطلبات" },
+  CUSTOMER_VALUE: { EN: "Total Spent", AR: "إجمالي الإنفاق" },
 };
 
 const handleFirestoreError = (error: any, operation: 'create' | 'update' | 'delete' | 'list' | 'get' | 'write', path: string | null = null, user: any = null) => {
@@ -266,8 +308,12 @@ export default function App() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
-  const [adminTab, setAdminTab] = useState<'PRODUCTS' | 'ORDERS' | 'SETTINGS' | 'DASHBOARD' | 'ADMINS'>('DASHBOARD');
+  type AdminTab = 'PRODUCTS' | 'ORDERS' | 'SETTINGS' | 'DASHBOARD' | 'ADMINS' | 'COUPONS' | 'CUSTOMERS';
+  const [adminTab, setAdminTab] = useState<AdminTab>('DASHBOARD');
   const [orders, setOrders] = useState<Order[]>([]);
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+  const [couponCodeInput, setCouponCodeInput] = useState('');
   const [userOrders, setUserOrders] = useState<Order[]>([]);
   const [settings, setSettings] = useState<Settings>({ 
     facebook: '', 
@@ -289,6 +335,7 @@ export default function App() {
   const [checkoutForm, setCheckoutForm] = useState({ phone: '', phone2: '', address: '', method: 'cash' as 'insta' | 'cash', location: '' });
   const [isLocating, setIsLocating] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
@@ -307,7 +354,8 @@ export default function App() {
     price: '', oldPrice: '',
     stock: '10',
     images: [] as string[],
-    isNew: false, isSale: false
+    isNew: false, isSale: false,
+    variants: [] as ProductVariant[]
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -337,7 +385,9 @@ export default function App() {
     const totalRevenue = orders.reduce((sum, o) => sum + (o.status === 'completed' ? o.total : 0), 0);
     const completedOrders = orders.filter(o => o.status === 'completed').length;
     const pendingOrders = orders.filter(o => o.status === 'pending').length;
-    
+    const lowStockProducts = products.filter(p => p.stock <= 5);
+    const topProducts = products.sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 5);
+
     // Group products by category for home page
     const groupedProducts: Record<string, Product[]> = {};
     filtered.forEach(p => {
@@ -356,8 +406,8 @@ export default function App() {
       { name: 'Jul', val: 3490 },
     ];
 
-    return { totalRevenue, completedOrders, pendingOrders, chartData, groupedProducts };
-  }, [orders, filtered, lang]);
+    return { totalRevenue, completedOrders, pendingOrders, lowStockProducts, topProducts, chartData, groupedProducts };
+  }, [orders, filtered, lang, products]);
 
   // --- Effects ---
   useEffect(() => {
@@ -486,6 +536,29 @@ export default function App() {
   }, [user]);
 
   useEffect(() => {
+    if (!user) {
+      setCoupons([]);
+      return;
+    }
+    const unsubscribe = onSnapshot(collection(db, 'coupons'), (snapshot) => {
+      setCoupons(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Coupon)));
+    }, (err) => console.error("Coupons Error:", err));
+    return () => unsubscribe();
+  }, [user]);
+
+  const customers = useMemo(() => {
+    const custMap = new Map<string, { email: string; name: string; totalSpent: number; ordersCount: number }>();
+    orders.forEach(order => {
+      const email = order.customerEmail.toLowerCase();
+      const existing = custMap.get(email) || { email, name: order.customerName, totalSpent: 0, ordersCount: 0 };
+      existing.totalSpent += order.total;
+      existing.ordersCount += 1;
+      custMap.set(email, existing);
+    });
+    return Array.from(custMap.values()).sort((a, b) => b.totalSpent - a.totalSpent);
+  }, [orders]);
+
+  useEffect(() => {
     document.documentElement.dir = lang === 'AR' ? 'rtl' : 'ltr';
     document.documentElement.lang = lang === 'AR' ? 'ar' : 'en';
   }, [lang]);
@@ -590,12 +663,39 @@ export default function App() {
 
       for (const item of cart) {
         const prod = products.find(p => p.id === item.id);
-        if (!prod || prod.stock < item.quantity) {
-           throw new Error(`Insufficient stock for ${getL(item.name)}`);
+        if (!prod) throw new Error(`Product not found: ${item.id}`);
+        
+        if (item.variantId) {
+          const variants = [...(prod.variants || [])];
+          const vIdx = variants.findIndex(v => v.id === item.variantId);
+          if (vIdx === -1 || variants[vIdx].stock < item.quantity) {
+             throw new Error(`Insufficient stock for ${getL(item.name)} - ${getL(item.variantName || {EN:'',AR:''})}`);
+          }
+          variants[vIdx].stock -= item.quantity;
+          batch.update(doc(db, 'products', item.id), { 
+            variants,
+            stock: prod.stock - item.quantity // Also deduct total stock
+          });
+        } else {
+          if (prod.stock < item.quantity) {
+             throw new Error(`Insufficient stock for ${getL(item.name)}`);
+          }
+          batch.update(doc(db, 'products', item.id), { stock: prod.stock - item.quantity });
         }
-        const productRef = doc(db, 'products', item.id);
-        batch.update(productRef, { stock: prod.stock - item.quantity });
       }
+
+      // Update coupon usage
+      if (appliedCoupon) {
+        batch.update(doc(db, 'coupons', appliedCoupon.id), { 
+          usedCount: (appliedCoupon.usedCount || 0) + 1 
+        });
+      }
+
+      const discountAmount = appliedCoupon ? (
+        appliedCoupon.type === 'percentage' 
+          ? (cartTotal * appliedCoupon.value / 100)
+          : appliedCoupon.value
+      ) : 0;
 
       const orderData = {
         userId: user.uid,
@@ -606,8 +706,16 @@ export default function App() {
         address: checkoutForm.address,
         paymentMethod: checkoutForm.method,
         locationUrl: checkoutForm.location,
-        items: cart.map(item => ({ id: item.id, name: item.name, price: item.price, quantity: item.quantity })),
-        total: cartTotal + settings.shippingFee,
+        items: cart.map(item => ({ 
+          id: item.id, 
+          name: item.name, 
+          price: item.price, 
+          quantity: item.quantity,
+          variantId: item.variantId,
+          variantName: item.variantName
+        })),
+        coupon: appliedCoupon ? { code: appliedCoupon.code, discount: discountAmount } : null,
+        total: (cartTotal - discountAmount) + settings.shippingFee,
         shippingFee: settings.shippingFee,
         status: 'pending',
         createdAt: serverTimestamp()
@@ -620,6 +728,7 @@ export default function App() {
 
       setLastPlacedOrder({ id: orderRef.id, ...orderData } as Order);
       setCart([]);
+      setAppliedCoupon(null);
       setIsCartOpen(false);
       setIsOrderModalOpen(true);
       notify({ EN: "Order placed!", AR: "تم إرسال الطلب بنجاح!" });
@@ -740,6 +849,66 @@ export default function App() {
     }
   };
 
+  const handleAddCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isAdmin) return;
+    const form = e.target as HTMLFormElement;
+    const formData = new FormData(form);
+    
+    const newCoupon = {
+      code: (formData.get('code') as string).toUpperCase(),
+      type: formData.get('type') as 'percentage' | 'fixed',
+      value: Number(formData.get('value')),
+      minOrder: Number(formData.get('minOrder')) || 0,
+      usageLimit: Number(formData.get('usageLimit')) || null,
+      usedCount: 0,
+      isActive: true,
+      expiryDate: formData.get('expiryDate') ? new Date(formData.get('expiryDate') as string) : null,
+      createdAt: serverTimestamp()
+    };
+    
+    try {
+      await addDoc(collection(db, 'coupons'), newCoupon);
+      notify({ EN: "Coupon added!", AR: "تم إضافة الكوبون!" }, 'success');
+      form.reset();
+    } catch (e) {
+      console.error(e);
+      notify({ EN: "Error adding coupon", AR: "خطأ في إضافة الكوبون" }, 'error');
+    }
+  };
+
+  const handleDeleteCoupon = async (id: string) => {
+    if (!isAdmin) return;
+    try {
+      await deleteDoc(doc(db, 'coupons', id));
+      notify({ EN: "Coupon deleted!", AR: "تم حذف الكوبون!" }, 'success');
+    } catch (e) { console.error(e); }
+  };
+
+  const handleApplyCoupon = (codeOverride?: string) => {
+    const code = codeOverride || prompt(lang === 'AR' ? 'أدخل كود الخصم:' : 'Enter coupon code:');
+    if (!code) return;
+    
+    const coupon = coupons.find(c => c.code === code.toUpperCase() && c.isActive);
+    if (!coupon) {
+      notify(TRANSLATIONS.INVALID_COUPON, 'error');
+      return;
+    }
+    
+    if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
+      notify(TRANSLATIONS.EXPIRED, 'error');
+      return;
+    }
+    
+    if (coupon.minOrder && cartTotal < coupon.minOrder) {
+      notify({ EN: `Min order ${coupon.minOrder} EGP`, AR: `الحد الأدنى للطلب ${coupon.minOrder} ج.م` }, 'error');
+      return;
+    }
+    
+    setAppliedCoupon(coupon);
+    notify({ EN: "Coupon applied!", AR: "تم تطبيق الخصم!" }, 'success');
+  };
+
   const handleRemoveAdmin = async (uid: string) => {
     try {
       await deleteDoc(doc(db, 'admins', uid));
@@ -824,33 +993,70 @@ export default function App() {
       notify({ EN: "Review added!", AR: "تم إضافة التقييم!" });
     } catch (e) { console.error(e); }
   };
-  const addToCart = (product: Product) => {
-    if (product.stock <= 0) {
+  const addToCart = (product: Product, variant?: ProductVariant | null) => {
+    // If product has variants and none is provided, notify
+    if (product.variants && product.variants.length > 0 && !variant) {
+      notify(TRANSLATIONS.SELECT_VARIANT, 'info');
+      // If modal not open, open it to let them select
+      if (selectedProduct?.id !== product.id) {
+         setSelectedProduct(product);
+      }
+      return;
+    }
+
+    const effectiveStock = variant ? variant.stock : product.stock;
+    const cartId = variant ? `${product.id}-${variant.id}` : product.id;
+
+    if (effectiveStock <= 0) {
       notify(TRANSLATIONS.OUT_OF_STOCK, 'error');
       return;
     }
+
     setCart(prev => {
-      const existing = prev.find(item => item.id === product.id);
+      const existing = prev.find(item => {
+        const itemId = item.variantId ? `${item.id}-${item.variantId}` : item.id;
+        return itemId === cartId;
+      });
+
       if (existing) {
-        if (existing.quantity >= product.stock) {
+        if (existing.quantity >= effectiveStock) {
           notify({ EN: "No more stock available", AR: "لا توجد كمية كافية متوفرة" }, 'info');
           return prev;
         }
-        return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
+        return prev.map(item => {
+           const itemId = item.variantId ? `${item.id}-${item.variantId}` : item.id;
+           return itemId === cartId ? { ...item, quantity: item.quantity + 1 } : item;
+        });
       }
-      return [...prev, { id: product.id, name: product.name, price: product.price, img: product.img, quantity: 1 }];
+      
+      const newCartItem: CartItem = { 
+        id: product.id, 
+        name: product.name, 
+        price: variant?.price || product.price, 
+        img: product.img, 
+        quantity: 1,
+        variantId: variant?.id,
+        variantName: variant?.name
+      };
+      return [...prev, newCartItem];
     });
     notify(TRANSLATIONS.ADDED_TO_CART);
   };
 
-  const removeFromCart = (id: string) => {
-    setCart(prev => prev.filter(item => item.id !== id));
+  const removeFromCart = (id: string, variantId?: string) => {
+    setCart(prev => prev.filter(item => !(item.id === id && item.variantId === variantId)));
   };
 
-  const updateCartQuantity = (id: string, delta: number) => {
+  const updateCartQuantity = (id: string, delta: number, variantId?: string) => {
     setCart(prev => prev.map(item => {
-      if (item.id === id) {
+      if (item.id === id && item.variantId === variantId) {
+        const prod = products.find(p => p.id === id);
+        const maxStock = variantId ? (prod?.variants?.find(v => v.id === variantId)?.stock || 0) : (prod?.stock || 0);
         const newQty = Math.max(1, item.quantity + delta);
+        if (newQty > maxStock) {
+           notify({ EN: "No more stock available", AR: "لا توجد كمية كافية متوفرة" }, 'info');
+           return item;
+        }
         return { ...item, quantity: newQty };
       }
       return item;
@@ -943,6 +1149,7 @@ export default function App() {
       img: newProduct.images[0] || "https://picsum.photos/seed/new/400/400",
       isNew: newProduct.isNew,
       isSale: newProduct.isSale,
+      variants: newProduct.variants || [],
       updatedAt: serverTimestamp()
     };
 
@@ -956,7 +1163,7 @@ export default function App() {
         notify(TRANSLATIONS.PRODUCT_PUBLISHED);
       }
       setIsEditing(null);
-      setNewProduct({ titleEN: '', titleAR: '', descEN: '', descAR: '', catEN: '', catAR: '', price: '', oldPrice: '', stock: '10', images: [], isNew: false, isSale: false });
+      setNewProduct({ titleEN: '', titleAR: '', descEN: '', descAR: '', catEN: '', catAR: '', price: '', oldPrice: '', stock: '10', images: [], isNew: false, isSale: false, variants: [] });
     } catch (e: any) {
       console.error(e);
       notify({ EN: "Failed: " + e.message, AR: "فشلت العملية: " + (e.message.startsWith('{') ? "خطأ في الصلاحيات" : e.message) }, 'error');
@@ -1114,7 +1321,7 @@ export default function App() {
                   </div>
 
                   <div className="flex gap-4 border-b border-white/10 pb-4 overflow-x-auto custom-scrollbar">
-                    {['DASHBOARD', 'PRODUCTS', 'ORDERS', 'SETTINGS', 'ADMINS'].map(tab => (
+                    {['DASHBOARD', 'PRODUCTS', 'ORDERS', 'COUPONS', 'CUSTOMERS', 'SETTINGS', 'ADMINS'].map(tab => (
                       <button key={tab} onClick={() => setAdminTab(tab as any)} className={`px-6 py-2 rounded-full text-[10px] font-black tracking-widest transition-all relative ${adminTab === tab ? 'bg-accent-pink text-white shadow-lg' : 'opacity-40 hover:opacity-100 text-white'}`}>
                         {t(`TAB_${tab}` as any)}
                         {tab === 'ORDERS' && orders.filter(o => o.status === 'pending').length > 0 && (
@@ -1151,6 +1358,41 @@ export default function App() {
                         </div>
                         <p className="text-3xl font-black">{stats.pendingOrders}</p>
                       </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                       <div className="glass p-8 rounded-[40px] bg-white/5 border-white/10 space-y-6">
+                          <h3 className="text-sm font-bold uppercase tracking-widest opacity-40 italic flex items-center gap-2">
+                             <AlertCircle size={14} className="text-accent-pink" /> 
+                             {t('LOW_STOCK')}
+                          </h3>
+                          <div className="space-y-4">
+                             {stats.lowStockProducts.length === 0 ? (
+                               <p className="text-xs opacity-30 italic">All products well stocked.</p>
+                             ) :stats.lowStockProducts.slice(0, 5).map(p => (
+                               <div key={p.id} className="flex items-center justify-between group">
+                                  <span className="text-xs font-bold truncate max-w-[150px]">{getL(p.name)}</span>
+                                  <span className="px-3 py-1 rounded-full bg-red-500/10 text-red-500 text-[10px] font-black">{p.stock} units</span>
+                               </div>
+                             ))}
+                          </div>
+                          <button onClick={() => setAdminTab('PRODUCTS')} className="text-[10px] font-bold text-accent-pink underline uppercase tracking-widest">{lang === 'AR' ? 'تحديث المخزن' : 'Update Stock'}</button>
+                       </div>
+
+                       <div className="glass p-8 rounded-[40px] bg-white/5 border-white/10 space-y-6">
+                          <h3 className="text-sm font-bold uppercase tracking-widest opacity-40 italic flex items-center gap-2">
+                             <Star size={14} className="text-accent-green" /> 
+                             {t('TOP_PRODUCTS')}
+                          </h3>
+                          <div className="space-y-4">
+                             {stats.topProducts.map(p => (
+                               <div key={p.id} className="flex items-center justify-between">
+                                  <span className="text-xs font-bold truncate max-w-[150px]">{getL(p.name)}</span>
+                                  <span className="text-[10px] opacity-40 font-bold">{p.views || 0} views</span>
+                               </div>
+                             ))}
+                          </div>
+                       </div>
                     </div>
                     
                     {/* Chart Container Fix */}
@@ -1259,6 +1501,51 @@ export default function App() {
                             <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileUpload} />
                           </div>
                         </div>
+                         <div className="space-y-4 pt-6 border-t border-white/10">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[10px] font-bold tracking-widest uppercase opacity-50">{t('VARIANTS')}</label>
+                              <button 
+                                onClick={() => {
+                                  const nameEN = prompt('Variant Name EN (e.g. Red / XL):');
+                                  const nameAR = prompt('اسم المتغير (مثلاً: أحمر / XL):');
+                                  if(nameEN) {
+                                    setNewProduct(prev => ({
+                                      ...prev,
+                                      variants: [...(prev.variants || []), { id: Date.now().toString(), name: { EN: nameEN, AR: nameAR || nameEN }, stock: 10 }]
+                                    }));
+                                  }
+                                }}
+                                className="text-[10px] font-bold text-accent-pink hover:underline uppercase tracking-widest"
+                              >
+                                + {t('ADD_VARIANT')}
+                              </button>
+                            </div>
+                            <div className="space-y-2">
+                              {newProduct.variants?.map((v, idx) => (
+                                <div key={v.id} className="flex items-center gap-4 glass p-3 rounded-2xl bg-white/5 border border-white/10">
+                                   <div className="flex-1">
+                                      <p className="text-xs font-bold text-white mb-1">{getL(v.name)}</p>
+                                   </div>
+                                   <div className="w-24">
+                                      <input 
+                                        type="number" 
+                                        className="glass-input !bg-black/40 !py-1 !px-2 !text-[10px]" 
+                                        value={v.stock} 
+                                        onChange={(e) => {
+                                          const up = [...(newProduct.variants || [])];
+                                          up[idx].stock = parseInt(e.target.value) || 0;
+                                          setNewProduct({...newProduct, variants: up});
+                                        }}
+                                      />
+                                   </div>
+                                   <button 
+                                     onClick={() => setNewProduct(prev => ({ ...prev, variants: prev.variants?.filter((_, i) => i !== idx) }))}
+                                     className="p-1 hover:text-red-400 transition-colors"
+                                   ><X size={14} /></button>
+                                </div>
+                              ))}
+                            </div>
+                         </div>
                         <button onClick={handlePublish} className="w-full glass-btn py-6 bg-accent-pink text-white shadow-2xl transition-all font-black tracking-widest uppercase italic">{isEditing ? t('UPDATE') : t('PUBLISH')}</button>
                       </div>
                     </div>
@@ -1315,6 +1602,7 @@ export default function App() {
                               <td className="py-4">
                                 <div className="flex flex-col">
                                   <span className="font-black text-accent-pink text-xs">{order.total} {t('EGP')}</span>
+                                  {order.discountAmount && <span className="text-[8px] text-accent-green">-{order.discountAmount} (Coupon)</span>}
                                   <span className="text-[9px] opacity-40 text-white/40">Method: {order.paymentMethod}</span>
                                 </div>
                               </td>
@@ -1347,6 +1635,84 @@ export default function App() {
                         </tbody>
                       </table>
                     </div>
+                  </motion.div>
+                )}
+
+                {adminTab === 'COUPONS' && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-12 text-white">
+                    <form onSubmit={handleAddCoupon} className="glass p-8 rounded-[40px] bg-white/5 border-white/10 grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-bold uppercase opacity-40 ">{t('COUPON_CODE')}</label>
+                        <input name="code" required className="glass-input !bg-white/5 !text-white" placeholder="EID2025" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-bold uppercase opacity-40 ">{t('TYPE')}</label>
+                        <select name="type" className="glass-input !bg-black !text-white h-[44px]">
+                          <option value="percentage">Percentage (%)</option>
+                          <option value="fixed">Fixed Amount</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-bold uppercase opacity-40 ">{t('VALUE')}</label>
+                        <input name="value" type="number" required className="glass-input !bg-white/5 !text-white" />
+                      </div>
+                      <button type="submit" className="glass-btn bg-accent-pink text-white h-[44px]">{t('PUBLISH')}</button>
+                    </form>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {coupons.map(c => (
+                        <div key={c.id} className="glass p-6 rounded-3xl bg-white/5 border-white/10 flex justify-between items-center group relative overflow-hidden">
+                          <div>
+                            <div className="flex items-center gap-3 mb-1">
+                              <h4 className="text-xl font-black italic text-accent-pink tracking-widest">{c.code}</h4>
+                              <span className="text-[9px] font-bold opacity-30">| {c.type}</span>
+                            </div>
+                            <p className="text-sm font-bold text-white/50">{c.value}{c.type === 'percentage' ? '%' : ' EGP'} OFF</p>
+                            <p className="text-[9px] font-bold uppercase opacity-30 mt-2">Used: {c.usedCount} / {c.usageLimit || '∞'}</p>
+                          </div>
+                          <button onClick={() => handleDeleteCoupon(c.id)} className="p-3 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500 hover:text-white transition-all">
+                            <Trash2 size={16} />
+                          </button>
+                          <div className="absolute top-0 right-0 w-20 h-20 bg-accent-pink/5 blur-2xl rounded-full -translate-y-1/2 translate-x-1/2" />
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+
+                {adminTab === 'CUSTOMERS' && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="overflow-x-auto">
+                    <table className="w-full text-left" dir={lang === 'AR' ? 'rtl' : 'ltr'}>
+                        <thead>
+                          <tr className="border-b border-white/10">
+                            <th className="py-4 text-[10px] uppercase opacity-40">{t('CUSTOMER')}</th>
+                            <th className="py-4 text-[10px] uppercase opacity-40 text-center">{t('TOTAL_ORDERS')}</th>
+                            <th className="py-4 text-[10px] uppercase opacity-40 text-center">{t('CUSTOMER_VALUE')}</th>
+                            <th className="py-4 text-[10px] uppercase opacity-40 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {customers.map((cust, idx) => (
+                            <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                              <td className="py-6">
+                                <span className="block font-bold text-white mb-1">{cust.name}</span>
+                                <span className="block text-[10px] opacity-40">{cust.email}</span>
+                              </td>
+                              <td className="py-6 text-center font-black opacity-60 text-lg">{cust.ordersCount}</td>
+                              <td className="py-6 text-center">
+                                <span className="text-xl font-black text-accent-green">{cust.totalSpent.toLocaleString()}</span>
+                                <span className="text-[9px] opacity-30 ml-2 uppercase">EGP</span>
+                              </td>
+                              <td className="py-6 text-right">
+                                <button className="glass-btn text-[10px] py-2 px-4 opacity-50 hover:opacity-100" onClick={() => {
+                                  setSearchQuery(cust.email);
+                                  setAdminTab('ORDERS');
+                                }}>View Orders</button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                    </table>
                   </motion.div>
                 )}
 
@@ -1811,19 +2177,37 @@ export default function App() {
                         </div>
                      </div>
 
+                     {selectedProduct.variants && selectedProduct.variants.length > 0 && (
+                        <div className="mb-16 space-y-6">
+                           <h3 className="text-sm font-black uppercase tracking-[4px] opacity-40">{t('SELECT_VARIANT')}</h3>
+                           <div className="flex flex-wrap gap-4">
+                              {selectedProduct.variants.map(v => (
+                                 <button 
+                                   key={v.id} 
+                                   onClick={() => setSelectedVariant(v)}
+                                   className={`px-8 py-4 rounded-[24px] text-xs font-black tracking-widest transition-all ${selectedVariant?.id === v.id ? 'bg-accent-pink text-white scale-105 shadow-xl' : 'glass bg-black/5 dark:bg-white/5 opacity-50 hover:opacity-100'}`}
+                                 >
+                                   {getL(v.name)}
+                                   {v.stock <= 5 && <span className="ml-2 text-[8px] opacity-50 uppercase tracking-widest">({v.stock} left)</span>}
+                                 </button>
+                              ))}
+                           </div>
+                        </div>
+                     )}
+
                      <div className="flex flex-col gap-5">
                         <button 
-                          onClick={() => addToCart(selectedProduct)}
-                          disabled={selectedProduct.stock <= 0}
-                          className={`w-full py-7 rounded-[32px] font-black uppercase tracking-[8px] transition-all shadow-4xl flex items-center justify-center gap-4 ${selectedProduct.stock > 0 ? 'bg-accent-pink text-white hover:scale-[1.02] active:scale-95' : 'bg-gray-500/20 text-gray-400 cursor-not-allowed'}`}
+                          onClick={() => addToCart(selectedProduct, selectedVariant)}
+                          disabled={selectedProduct.stock <= 0 && (!selectedVariant || (selectedVariant && selectedVariant.stock <= 0))}
+                          className={`w-full py-7 rounded-[32px] font-black uppercase tracking-[8px] transition-all shadow-4xl flex items-center justify-center gap-4 ${(selectedProduct.stock > 0 || (selectedVariant && selectedVariant.stock > 0)) ? 'bg-accent-pink text-white hover:scale-[1.02] active:scale-95' : 'bg-gray-500/20 text-gray-400 cursor-not-allowed'}`}
                         >
                           <ShoppingBag size={24} />
                           {t('ADD_TO_CART')}
                         </button>
                         <button 
-                          onClick={() => { addToCart(selectedProduct); setIsCartOpen(true); }}
-                          disabled={selectedProduct.stock <= 0}
-                          className={`w-full py-7 rounded-[32px] font-black uppercase tracking-[8px] transition-all shadow-4xl flex items-center justify-center gap-4 ${selectedProduct.stock > 0 ? 'bg-black text-white dark:bg-white dark:text-black hover:scale-[1.02] active:scale-95' : 'hidden'}`}
+                          onClick={() => { addToCart(selectedProduct, selectedVariant); setIsCartOpen(true); }}
+                          disabled={selectedProduct.stock <= 0 && (!selectedVariant || (selectedVariant && selectedVariant.stock <= 0))}
+                          className={`w-full py-7 rounded-[32px] font-black uppercase tracking-[8px] transition-all shadow-4xl flex items-center justify-center gap-4 ${(selectedProduct.stock > 0 || (selectedVariant && selectedVariant.stock > 0)) ? 'bg-black text-white dark:bg-white dark:text-black hover:scale-[1.02] active:scale-95' : 'hidden'}`}
                         >
                           {lang === 'AR' ? 'شراء الآن' : 'Buy Now'}
                         </button>
@@ -2039,7 +2423,7 @@ export default function App() {
                      {cart.map(item => (
                        <motion.div 
                          layout 
-                         key={item.id} 
+                         key={item.variantId ? `${item.id}-${item.variantId}` : item.id} 
                          initial={{ opacity: 0, y: 20 }}
                          animate={{ opacity: 1, y: 0 }}
                          className="flex gap-6 p-6 rounded-[32px] glass bg-black/5 dark:bg-white/5 group border border-transparent hover:border-accent-pink/20 transition-all"
@@ -2051,10 +2435,11 @@ export default function App() {
                            <div className="flex justify-between items-start">
                               <div>
                                  <p className="font-black text-lg tracking-tight mb-1">{getL(item.name)}</p>
+                                 {item.variantName && <p className="text-[10px] font-bold text-accent-pink uppercase tracking-widest mb-1">{getL(item.variantName)}</p>}
                                  <p className="text-xs opacity-50 font-medium uppercase tracking-widest">{lang === 'AR' ? 'سعر الوحدة' : 'Unit Price'}: {item.price} {t('EGP')}</p>
                               </div>
                               <button 
-                                onClick={() => removeFromCart(item.id)} 
+                                onClick={() => removeFromCart(item.id, item.variantId)} 
                                 className="p-2 text-red-500/20 hover:text-red-500 hover:bg-red-500/5 rounded-full transition-all"
                               >
                                 <Trash2 size={18} />
@@ -2064,12 +2449,12 @@ export default function App() {
                            <div className="flex items-center justify-between mt-4">
                               <div className="flex items-center bg-black/10 dark:bg-white/10 rounded-xl p-1">
                                 <button 
-                                  onClick={() => updateCartQuantity(item.id, -1)} 
+                                  onClick={() => updateCartQuantity(item.id, -1, item.variantId)} 
                                   className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 transition-colors font-bold"
                                 >-</button>
                                 <span className="text-sm font-black w-8 text-center">{item.quantity}</span>
                                 <button 
-                                  onClick={() => updateCartQuantity(item.id, 1)} 
+                                  onClick={() => updateCartQuantity(item.id, 1, item.variantId)} 
                                   className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 transition-colors font-bold"
                                 >+</button>
                               </div>
@@ -2085,14 +2470,51 @@ export default function App() {
               {/* Cart Footer */}
               {cart.length > 0 && (
                 <div className="p-8 pt-6 border-t border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5">
+                    {/* Coupon Section */}
+                    <div className="mb-8 p-6 rounded-[32px] glass bg-white/5 border border-white/10 space-y-4">
+                       <p className="text-[10px] font-black uppercase tracking-[3px] opacity-40">{t('COUPON')}</p>
+                       {!appliedCoupon ? (
+                         <div className="flex gap-2">
+                            <input 
+                              type="text" 
+                              placeholder={lang === 'AR' ? 'كود الخصم...' : 'Discount code...'} 
+                              value={couponCodeInput}
+                              onChange={e => setCouponCodeInput(e.target.value)}
+                              className="flex-1 glass-input !bg-black/40 !text-white !p-4"
+                            />
+                            <button 
+                              onClick={() => handleApplyCoupon(couponCodeInput)}
+                              className="px-6 rounded-2xl bg-white text-black font-black uppercase text-[10px] tracking-widest hover:scale-105 transition-all"
+                            >
+                               {t('APPLY')}
+                            </button>
+                         </div>
+                       ) : (
+                         <div className="flex items-center justify-between bg-accent-green/10 p-4 rounded-2xl border border-accent-green/20">
+                            <div className="flex items-center gap-3 text-accent-green">
+                               <Tag size={16} />
+                               <span className="text-xs font-black uppercase tracking-widest">{appliedCoupon.code}</span>
+                            </div>
+                            <button onClick={() => setAppliedCoupon(null)} className="text-accent-pink hover:scale-110 transition-all"><X size={14} /></button>
+                         </div>
+                       )}
+                    </div>
                    <div className="space-y-4 mb-8">
                      <div className="flex justify-between items-center opacity-60">
                         <span className="text-sm font-black uppercase tracking-widest">{t('SUBTOTAL')}</span>
                         <span className="font-bold">{cartTotal.toLocaleString()} {t('EGP')}</span>
                      </div>
+                     {appliedCoupon && (
+                       <div className="flex justify-between items-center text-accent-green mb-2 px-1">
+                          <span className="text-sm font-black uppercase tracking-widest">{t('DISCOUNT')}</span>
+                          <span className="font-bold">
+                            -{(appliedCoupon.type === 'percentage' ? (cartTotal * appliedCoupon.value / 100) : appliedCoupon.value).toLocaleString()} {t('EGP')}
+                          </span>
+                       </div>
+                     )}
                      <div className="flex justify-between items-center text-2xl font-black">
-                        <span className="uppercase tracking-widest">{t('TOTAL')}</span>
-                        <span className="text-accent-pink">{cartTotal.toLocaleString()} <span className="text-sm font-black opacity-50">{t('EGP')}</span></span>
+                        <span className="uppercase tracking-widest leading-none translate-y-1">{t('TOTAL')}</span>
+                        <span className="text-accent-pink">{(cartTotal - (appliedCoupon ? (appliedCoupon.type === 'percentage' ? (cartTotal * appliedCoupon.value / 100) : appliedCoupon.value) : 0)).toLocaleString()} <span className="text-sm font-black opacity-50 ml-2">{t('EGP')}</span></span>
                      </div>
                    </div>
 

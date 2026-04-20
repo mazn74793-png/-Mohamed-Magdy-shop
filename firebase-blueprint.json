@@ -27,6 +27,19 @@
         "img": { "type": "string" },
         "isNew": { "type": "boolean" },
         "isSale": { "type": "boolean" },
+        "variants": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "object" },
+              "stock": { "type": "number" },
+              "price": { "type": "number" }
+            }
+          }
+        },
+        "stock": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
@@ -96,6 +109,22 @@
         "tiktok": { "type": "string" },
         "whatsapp": { "type": "string" }
       }
+    },
+    "Coupon": {
+      "title": "Coupon",
+      "description": "A discount coupon code.",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "type": { "type": "string", "enum": ["percentage", "fixed"] },
+        "value": { "type": "number" },
+        "minOrder": { "type": "number" },
+        "usageLimit": { "type": "number" },
+        "usedCount": { "type": "number" },
+        "expiryDate": { "type": "string", "format": "date-time" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["code", "type", "value", "isActive"]
     }
   },
   "firestore": {
@@ -122,6 +151,10 @@
     "/users/{userId}": {
       "schema": "User",
       "description": "Collection of all registered users."
+    },
+    "/coupons/{couponId}": {
+      "schema": "Coupon",
+      "description": "Collection of discount coupons."
     }
   }
 }
