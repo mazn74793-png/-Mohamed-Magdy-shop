@@ -33,6 +33,17 @@ const googleProvider = new GoogleAuthProvider();
 
 const ADMIN_EMAIL = 'motaem23y@gmail.com';
 
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 // --- Types & Constants ---
 type Language = 'EN' | 'AR';
 
@@ -175,6 +186,8 @@ const TRANSLATIONS = {
   COMPLETED: { EN: "Completed", AR: "مكتمل" },
   CANCELLED: { EN: "Cancelled", AR: "ملغي" },
   ORDER_MESSAGES: { EN: "Order Messages", AR: "رسائل الطلب" },
+  WHATSAPP_CONFIRM: { EN: "Confirm Order via WhatsApp", AR: "تأكيد الطلب عبر واتساب" },
+  WHATSAPP_DESC: { EN: "Confirm your order now for faster processing.", AR: "أكمل طلبك الآن من خلال التأكيد عبر واتساب لتسريع الشحن." },
   SEND_MSG: { EN: "Send Notification", AR: "ارسال إشعار" },
   DELETE_ORDER: { EN: "Delete Order", AR: "حذف الطلب" },
   NOTIFICATIONS: { EN: "Notifications", AR: "الإشعارات" },
@@ -208,6 +221,10 @@ const TRANSLATIONS = {
   USER_NOT_FOUND: { EN: "User not found. They must login once first.", AR: "المستخدم غير موجود. يجب أن يسجل دخوله مرة واحدة أولاً." },
   ADMIN_ADDED: { EN: "Admin added successfully!", AR: "تم إضافة الأدمن بنجاح!" },
   ADMIN_REMOVED: { EN: "Admin removed!", AR: "تم إزالة الأدمن!" },
+  ENABLE_PUSH: { EN: "Enable Device Notifications", AR: "تفعيل إشعارات الجهاز" },
+  PUSH_ENABLED: { EN: "Device notifications enabled!", AR: "تم تفعيل إشعارات الجهاز!" },
+  PUSH_ERROR: { EN: "Failed to enable notifications.", AR: "فشل تفعيل الإشعارات." },
+  OFFLINE_NOTIFY: { EN: "Order Alerts (even when closed)", AR: "تنبيهات الطلبات (حتى والموقع مغلق)" },
 };
 
 const handleFirestoreError = (error: any, operation: 'create' | 'update' | 'delete' | 'list' | 'get' | 'write', path: string | null = null, user: any = null) => {
@@ -266,6 +283,7 @@ export default function App() {
   });
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const [lastPlacedOrder, setLastPlacedOrder] = useState<Order | null>(null);
   const [adminList, setAdminList] = useState<any[]>([]); // Full objects for management UI
   const [adminEmailInput, setAdminEmailInput] = useState('');
   const [checkoutForm, setCheckoutForm] = useState({ phone: '', phone2: '', address: '', method: 'cash' as 'insta' | 'cash', location: '' });
@@ -495,8 +513,18 @@ export default function App() {
   useEffect(() => {
     if (isAdmin) {
       const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+      let initialLoad = true;
       const unsubscribe = onSnapshot(q, (snapshot) => {
-        setOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order)));
+        const newOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+        if (!initialLoad && snapshot.docChanges().some(change => change.type === 'added')) {
+          notify({ EN: "New order received!", AR: "لقد وصلك طلب جديد!" }, 'success');
+          try {
+            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+            audio.play().catch(() => {});
+          } catch(e){}
+        }
+        setOrders(newOrders);
+        initialLoad = false;
       });
       return () => unsubscribe();
     }
@@ -590,10 +618,18 @@ export default function App() {
       
       await batch.commit().catch(e => handleFirestoreError(e, 'write', 'checkout-batch', user));
 
+      setLastPlacedOrder({ id: orderRef.id, ...orderData } as Order);
       setCart([]);
       setIsCartOpen(false);
       setIsOrderModalOpen(true);
       notify({ EN: "Order placed!", AR: "تم إرسال الطلب بنجاح!" });
+      
+      // Notify Admin via Server Push
+      fetch('/api/notify-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: orderRef.id })
+      }).catch(e => console.error("Push notification trigger failed:", e));
     } catch (e: any) {
       console.error(e);
       notify({ EN: "Checkout failed: " + e.message, AR: "فشل إتمام الشراء: " + (e.message.startsWith('{') ? "خطأ في الصلاحيات" : e.message) }, 'error');
@@ -710,6 +746,35 @@ export default function App() {
       notify(TRANSLATIONS.ADMIN_REMOVED, 'success');
     } catch (err) {
       handleFirestoreError(err, 'delete', `admins/${uid}`, user);
+    }
+  };
+
+  const subscribeToPush = async () => {
+    if (!('serviceWorker' in navigator) || !user) {
+      alert("Push notifications not supported or user not logged in.");
+      return;
+    }
+    
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      const response = await fetch('/api/vapid-public-key');
+      const { publicKey } = await response.json();
+      
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey)
+      });
+      
+      await fetch('/api/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription, userId: user.uid })
+      });
+      
+      notify(TRANSLATIONS.PUSH_ENABLED, 'success');
+    } catch (error) {
+      console.error('Push subscription failed:', error);
+      notify(TRANSLATIONS.PUSH_ERROR, 'error');
     }
   };
 
@@ -994,8 +1059,11 @@ export default function App() {
             {user ? (
               <div className="flex items-center gap-3">
                 <div className="relative group/profile">
-                  <div onClick={() => isAdmin && setIsAdminPanelOpen(!isAdminPanelOpen)} className={`w-10 h-10 rounded-full overflow-hidden border-2 cursor-pointer transition-all ${isAdmin ? 'border-accent-green' : 'border-white/20'}`}>
+                  <div onClick={() => isAdmin && setIsAdminPanelOpen(!isAdminPanelOpen)} className={`w-10 h-10 rounded-full overflow-hidden border-2 cursor-pointer transition-all relative ${isAdmin ? 'border-accent-green' : 'border-white/20'}`}>
                     <img src={user.photoURL || ''} alt="User" />
+                    {isAdmin && orders.filter(o => o.status === 'pending').length > 0 && (
+                      <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0c] animate-pulse" />
+                    )}
                   </div>
                   <div className="absolute top-full mt-2 right-0 hidden group-hover/profile:block z-[100]">
                     <div className="glass p-2 rounded-2xl bg-black shadow-xl border border-white/10 min-w-[150px]">
@@ -1047,8 +1115,13 @@ export default function App() {
 
                   <div className="flex gap-4 border-b border-white/10 pb-4 overflow-x-auto custom-scrollbar">
                     {['DASHBOARD', 'PRODUCTS', 'ORDERS', 'SETTINGS', 'ADMINS'].map(tab => (
-                      <button key={tab} onClick={() => setAdminTab(tab as any)} className={`px-6 py-2 rounded-full text-[10px] font-black tracking-widest transition-all ${adminTab === tab ? 'bg-accent-pink text-white shadow-lg' : 'opacity-40 hover:opacity-100 text-white'}`}>
+                      <button key={tab} onClick={() => setAdminTab(tab as any)} className={`px-6 py-2 rounded-full text-[10px] font-black tracking-widest transition-all relative ${adminTab === tab ? 'bg-accent-pink text-white shadow-lg' : 'opacity-40 hover:opacity-100 text-white'}`}>
                         {t(`TAB_${tab}` as any)}
+                        {tab === 'ORDERS' && orders.filter(o => o.status === 'pending').length > 0 && (
+                          <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white ring-2 ring-[#0a0a0c]">
+                            {orders.filter(o => o.status === 'pending').length}
+                          </span>
+                        )}
                       </button>
                     ))}
                   </div>
@@ -1230,7 +1303,10 @@ export default function App() {
                             <tr key={order.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                               <td className="py-4">
                                 <div className="flex flex-col">
-                                  <span className="font-bold text-sm text-white">{order.customerName}</span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-sm text-white">{order.customerName}</span>
+                                    {order.status === 'pending' && <span className="bg-red-500/10 text-red-400 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full animate-pulse">New</span>}
+                                  </div>
                                   <span className="text-[10px] opacity-70 text-white/70">{order.customerPhone}</span>
                                   <span className="text-[10px] opacity-50 text-white/50">{order.address}</span>
                                 </div>
@@ -1323,6 +1399,24 @@ export default function App() {
                         </div>
                       </div>
                     </div>
+
+                    <div className="p-8 rounded-[40px] bg-accent-pink/5 border border-accent-pink/20 space-y-6">
+                      <div className="flex items-center gap-4">
+                         <div className="p-3 bg-accent-pink/20 text-accent-pink rounded-2xl">
+                            <Bell size={24} />
+                         </div>
+                         <div>
+                           <h3 className="text-xl font-black uppercase tracking-widest">{t('OFFLINE_NOTIFY')}</h3>
+                           <p className="text-[10px] opacity-50 font-bold uppercase tracking-[2px]">Shopify-style alerts</p>
+                         </div>
+                      </div>
+                      <p className="text-xs opacity-60 leading-relaxed italic">{lang === 'AR' ? 'اضغط على الزر أدناه للسماح للمتصفح بإرسال تنبيهات لك عند وصول طلبات جديدة، حتى لو كنت لا تستخدم الموقع حالياً.' : 'Click below to allow the browser to send you notifications for new orders, even if you are not currently using the site.'}</p>
+                      <button onClick={subscribeToPush} className="w-full sm:w-auto glass-btn bg-white/10 text-white py-4 px-12 hover:bg-accent-green hover:text-black transition-all font-bold tracking-widest uppercase flex items-center justify-center gap-3">
+                        <Smartphone size={18} />
+                        {t('ENABLE_PUSH')}
+                      </button>
+                    </div>
+
                     <button onClick={updateSettings} className="glass-btn bg-accent-pink text-white py-4 px-12 hover:scale-105 transition-all font-bold tracking-widest uppercase">{t('SAVE_SETTINGS')}</button>
                   </motion.div>
                 )}
@@ -1610,6 +1704,7 @@ export default function App() {
                </div>
                <h2 className="text-4xl font-black mb-4 uppercase tracking-[4px]">{t('ORDER_CONFIRMED')}</h2>
                <p className="text-lg opacity-60 font-light mb-10 leading-relaxed">{t('ORDER_DESC')}</p>
+
                <button onClick={() => setIsOrderModalOpen(false)} className="w-full py-5 bg-white text-black rounded-3xl font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all">Okay</button>
             </motion.div>
           </div>
