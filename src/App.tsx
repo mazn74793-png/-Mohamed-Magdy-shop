@@ -380,6 +380,8 @@ export default function App() {
     variants: [] as ProductVariant[]
   });
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const optimizeImg = (url: string, width = 800) => {
     if (!url.includes('images.unsplash.com')) return url;
     if (url.includes('?')) {
