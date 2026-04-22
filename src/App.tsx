@@ -271,12 +271,7 @@ const TRANSLATIONS = {
   USAGE_LIMIT: { EN: "Usage Limit", AR: "حد الاستخدام" },
   TYPE: { EN: "Type", AR: "النوع" },
   VALUE: { EN: "Value", AR: "القيمة" },
-  PUBLISH: { EN: "Publish", AR: "نشر" },
   COUPON: { EN: "Coupon", AR: "كوبون الخصم" },
-  SUBTOTAL: { EN: "Subtotal", AR: "المجموع الفرعي" },
-  TOTAL: { EN: "Total", AR: "الإجمالي" },
-  CHECKOUT: { EN: "Checkout", AR: "إتمام الشراء" },
-  CUSTOMER: { EN: "Customer", AR: "العميل" },
   SELECT_VARIANT: { EN: "Select Color/Size", AR: "اختار اللون/المقاس" },
   LOW_STOCK: { EN: "Low Stock!", AR: "كمية منخفضة!" },
   TOTAL_ORDERS: { EN: "Total Orders", AR: "إجمالي الطلبات" },
@@ -724,8 +719,9 @@ export default function App() {
 
       // Update coupon usage
       if (appliedCoupon) {
+        const { increment } = await import('firebase/firestore');
         batch.update(doc(db, 'coupons', appliedCoupon.id), { 
-          usedCount: (appliedCoupon.usedCount || 0) + 1 
+          usedCount: increment(1) 
         });
       }
 
@@ -755,7 +751,8 @@ export default function App() {
           if (item.variantName) base.variantName = item.variantName;
           return base;
         }),
-        coupon: appliedCoupon ? { code: appliedCoupon.code, discount: discountAmount } : null,
+        couponCode: appliedCoupon ? appliedCoupon.code : null,
+        discountAmount: discountAmount,
         total: (cartTotal - discountAmount) + settings.shippingFee,
         shippingFee: settings.shippingFee,
         status: 'pending',
