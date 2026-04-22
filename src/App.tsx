@@ -397,8 +397,10 @@ export default function App() {
   }, [user, adminList]);
 
   const filtered = useMemo(() => products.filter(p => {
-    const name = getL(p.name, lang);
-    const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase());
+    const name = getL(p.name, lang).toLowerCase();
+    const cat = getL(p.category, lang).toLowerCase();
+    const query = searchQuery.toLowerCase();
+    const matchesSearch = name.includes(query) || cat.includes(query);
     if (!matchesSearch) return false;
     
     if (activeTab === 'NEW_ARRIVALS') return !!p.isNew;
