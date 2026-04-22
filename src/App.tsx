@@ -11,7 +11,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, getDocFromServer, setDoc, where, increment, getDocs } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, getDocFromServer, setDoc, where, increment, getDocs } from 'firebase/firestore';
 import firebaseConfigLocal from '../firebase-applet-config.json';
 
 // --- Initialization ---
@@ -28,7 +28,10 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+// Enable Offline Persistence for much faster perceived performance
+const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+}, firebaseConfig.firestoreDatabaseId);
 const googleProvider = new GoogleAuthProvider();
 
 const ADMIN_EMAIL = 'motaem23y@gmail.com';
@@ -179,7 +182,7 @@ const TRANSLATIONS = {
   ORDERS: { EN: "Orders", AR: "طلبات" },
   SEARCH: { EN: "Search...", AR: "بحث..." },
   HERO_TITLE: { EN: "Summer Drop '24", AR: "تشكيلة صيف 24" },
-  HERO_DESC: { EN: "Explore our curated collection of exclusive linen sets and ethereal dresses designed for the modern muse.", AR: "اكتشفوا مجموعتنا المختارة من أطقم الكتان الحصرية والفساتين الرقيقة المصممة للمرآة العصرية." },
+  HERO_DESC: { EN: "Explore our curated collection of exclusive linen sets and ethereal dresses designed for the modern muse.", AR: "اكتشفوا مجموعتنا المختارة من أطقم الكتان الحصرية والفساتين الرقيقة المصممة للمرأة العصرية." },
   YOUR_CART: { EN: "Your Cart", AR: "سلة التسوق" },
   EMPTY_CART: { EN: "Your cart is empty", AR: "السلة فارغة" },
   TOTAL: { EN: "Total", AR: "الإجمالي" },
@@ -258,6 +261,7 @@ const TRANSLATIONS = {
   VARIANT_NAME: { EN: "Variant (e.g. Red / XL)", AR: "المتغير (مثلاً: أحمر / XL)" },
   COUPON_CODE: { EN: "Coupon Code", AR: "كود الخصم" },
   APPLY: { EN: "Apply", AR: "تطبيق" },
+  SHOP_NOW: { EN: "Shop Now", AR: "تسوق الآن" },
   EXPIRED: { EN: "Expired", AR: "منتهي" },
   INVALID_COUPON: { EN: "Invalid Coupon Code", AR: "كود خصم غير صالح" },
   DISCOUNT: { EN: "Discount", AR: "الخصم" },
@@ -353,6 +357,14 @@ export default function App() {
   const [isZoomed, setIsZoomed] = useState(false);
   const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });
   const [isFullscreenView, setIsFullscreenView] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const dataLoaded = useRef({ products: false, settings: false });
+
+  const checkLoading = () => {
+    if (dataLoaded.current.products && dataLoaded.current.settings) {
+      setIsInitialLoading(false);
+    }
+  };
 
   // Admin Form State
   const [isEditing, setIsEditing] = useState<string | null>(null);
@@ -368,7 +380,13 @@ export default function App() {
     variants: [] as ProductVariant[]
   });
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const optimizeImg = (url: string, width = 800) => {
+    if (!url.includes('images.unsplash.com')) return url;
+    if (url.includes('?')) {
+      return url.split('?')[0] + `?auto=format&fit=crop&q=80&w=${width}`;
+    }
+    return url + `?auto=format&fit=crop&q=80&w=${width}`;
+  };
 
   const t = (key: string) => {
     const entry = (TRANSLATIONS as any)[key];
@@ -381,7 +399,7 @@ export default function App() {
     return isRoot || isInList;
   }, [user, adminList]);
 
-  const filtered = products.filter(p => {
+  const filtered = useMemo(() => products.filter(p => {
     const name = getL(p.name, lang);
     const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase());
     if (!matchesSearch) return false;
@@ -389,14 +407,14 @@ export default function App() {
     if (activeTab === 'NEW_ARRIVALS') return !!p.isNew;
     if (activeTab === 'SALE') return !!p.isSale;
     return true;
-  });
+  }), [products, lang, searchQuery, activeTab]);
 
   const stats = useMemo(() => {
     const totalRevenue = orders.reduce((sum, o) => sum + (o.status === 'completed' ? o.total : 0), 0);
     const completedOrders = orders.filter(o => o.status === 'completed').length;
     const pendingOrders = orders.filter(o => o.status === 'pending').length;
     const lowStockProducts = products.filter(p => p.stock <= 5);
-    const topProducts = products.sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 5);
+    const topProducts = [...products].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 5);
 
     // Group products by category for home page
     const groupedProducts: Record<string, Product[]> = {};
@@ -493,9 +511,13 @@ export default function App() {
       next: (snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
         setProducts(data);
+        dataLoaded.current.products = true;
+        checkLoading();
       },
       error: (err) => {
         console.error("Products Listener Error:", err);
+        dataLoaded.current.products = true;
+        checkLoading();
       }
     });
     return () => unsubscribe();
@@ -507,9 +529,13 @@ export default function App() {
         if (docSnap.exists()) {
           setSettings(prev => ({ ...prev, ...docSnap.data() }));
         }
+        dataLoaded.current.settings = true;
+        checkLoading();
       },
       error: (err) => {
         console.error("Settings Listener Error:", err);
+        dataLoaded.current.settings = true;
+        checkLoading();
       }
     });
 
@@ -712,18 +738,21 @@ export default function App() {
         customerName: user.displayName || "Unknown",
         customerEmail: user.email,
         customerPhone: checkoutForm.phone,
-        customerPhone2: checkoutForm.phone2,
+        customerPhone2: checkoutForm.phone2 || null,
         address: checkoutForm.address,
         paymentMethod: checkoutForm.method,
-        locationUrl: checkoutForm.location,
-        items: cart.map(item => ({ 
-          id: item.id, 
-          name: item.name, 
-          price: item.price, 
-          quantity: item.quantity,
-          variantId: item.variantId,
-          variantName: item.variantName
-        })),
+        locationUrl: checkoutForm.location || null,
+        items: cart.map(item => {
+          const base: any = { 
+            id: item.id, 
+            name: item.name, 
+            price: item.price, 
+            quantity: item.quantity 
+          };
+          if (item.variantId) base.variantId = item.variantId;
+          if (item.variantName) base.variantName = item.variantName;
+          return base;
+        }),
         coupon: appliedCoupon ? { code: appliedCoupon.code, discount: discountAmount } : null,
         total: (cartTotal - discountAmount) + settings.shippingFee,
         shippingFee: settings.shippingFee,
@@ -1213,6 +1242,40 @@ export default function App() {
 
   return (
     <div className={`flex flex-col w-full min-h-screen transition-all duration-500 ${theme === 'dark' ? 'bg-[#0a0a0f] text-white' : 'bg-[#f8f9fa] text-gray-900'}`} dir={lang === 'AR' ? 'rtl' : 'ltr'}>
+      {/* Initial Loading Overlay */}
+      <AnimatePresence>
+        {isInitialLoading && (
+          <motion.div 
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[1000] flex flex-col items-center justify-center bg-[#0a0a0f]"
+          >
+            <motion.div 
+              animate={{ 
+                scale: [1, 1.2, 1],
+                opacity: [0.5, 1, 0.5]
+              }} 
+              transition={{ duration: 2, repeat: Infinity }}
+              className="text-4xl font-black flex items-center gap-2"
+            >
+               <span className="bg-gradient-to-r from-[#00f2fe] to-[#667eea] bg-clip-text text-transparent font-serif italic">eleven</span>
+               <span className="text-white opacity-30">:</span>
+               <span className="bg-gradient-to-r from-[#764ba2] to-[#ff9ee2] bg-clip-text text-transparent font-serif italic">eleven</span>
+            </motion.div>
+            <div className="mt-8 w-48 h-1 bg-white/10 rounded-full overflow-hidden">
+               <motion.div 
+                 initial={{ x: "-100%" }}
+                 animate={{ x: "100%" }}
+                 transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                 className="w-full h-full bg-gradient-to-r from-transparent via-accent-pink to-transparent"
+               />
+            </div>
+            <p className="mt-4 text-[10px] font-bold tracking-[4px] uppercase opacity-40 text-white">
+              {lang === 'AR' ? 'جاري التحميل...' : 'Loading Excellence...'}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Background Gradients */}
       <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden">
         {theme === 'dark' ? (
@@ -1321,7 +1384,7 @@ export default function App() {
 
         {/* Hero Section */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative h-[300px] sm:h-[450px] mb-12 sm:mb-20 rounded-[48px] overflow-hidden group shadow-3xl">
-          <img src={settings.heroImage || "https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&q=80&w=1600"} className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
+          <img src={optimizeImg(settings.heroImage || "https://images.unsplash.com/photo-1445205170230-053b83016050", 1200)} className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
           <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/30 to-transparent flex flex-col justify-center p-10 sm:p-20 text-white">
             <motion.h1 initial={{ x: -20 }} animate={{ x: 0 }} transition={{ delay: 0.3 }} className="text-4xl sm:text-7xl font-light tracking-tight mb-4 drop-shadow-2xl">{getL(settings.heroTitle)}</motion.h1>
             <motion.p initial={{ x: -20 }} animate={{ x: 0 }} transition={{ delay: 0.4 }} className="max-w-md text-sm sm:text-lg opacity-90 font-light leading-relaxed mb-8 drop-shadow-lg">{getL(settings.heroDesc)}</motion.p>
@@ -2039,7 +2102,7 @@ export default function App() {
                     {(items as Product[]).map((product, idx) => (
                         <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ delay: idx * 0.05 }} key={product.id} className="text-center group flex flex-col">
                           <div className="relative aspect-[3/4] mb-4 overflow-hidden rounded-[24px] bg-white/5 border border-black/5 dark:border-white/10 shadow-sm group-hover:shadow-xl transition-all duration-500 cursor-pointer" onClick={() => setSelectedProduct(product)}>
-                            <img src={product.img} alt={getL(product.name)} referrerPolicy="no-referrer" className="object-cover w-full h-full transition-transform duration-[1.5s] group-hover:scale-110" />
+                            <img src={optimizeImg(product.img, 400)} alt={getL(product.name)} loading="lazy" referrerPolicy="no-referrer" className="object-cover w-full h-full transition-transform duration-[1.5s] group-hover:scale-110" />
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500" />
                             
                             {(product.isNew || product.isSale) && (
