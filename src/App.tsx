@@ -2313,7 +2313,7 @@ export default function App() {
                           {t('ADD_TO_CART')}
                         </button>
                         <button 
-                          onClick={() => { addToCart(selectedProduct, selectedVariant); setIsCartOpen(true); }}
+                          onClick={() => { addToCart(selectedProduct, selectedVariant); setIsCheckoutOpen(true); }}
                           disabled={selectedProduct.stock <= 0 && (!selectedVariant || (selectedVariant && selectedVariant.stock <= 0))}
                           className={`w-full py-7 rounded-[32px] font-black uppercase tracking-[8px] transition-all shadow-4xl flex items-center justify-center gap-4 ${(selectedProduct.stock > 0 || (selectedVariant && selectedVariant.stock > 0)) ? 'bg-black text-white dark:bg-white dark:text-black hover:scale-[1.02] active:scale-95' : 'hidden'}`}
                         >
