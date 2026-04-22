@@ -1307,9 +1307,9 @@ export default function App() {
         <header className="flex flex-wrap items-center justify-between mb-8 sm:mb-16 gap-6 glass p-6 sm:px-10 rounded-[32px] sm:rounded-[48px] bg-white/5 border-white/10">
           <div className="flex flex-col items-center sm:items-start group cursor-pointer" onClick={() => setActiveTab('COLLECTIONS')}>
             <div className={`text-2xl sm:text-3xl font-black tracking-tighter flex items-center gap-1.5 transition-transform duration-500 group-hover:scale-105`}>
-               <span className="bg-gradient-to-r from-[#00f2fe] to-[#667eea] bg-clip-text text-transparent font-serif italic">eleven</span>
+               <span className="bg-gradient-to-r from-[#00f2fe] to-[#667eea] logo-text-fix font-serif italic">eleven</span>
                <span className="text-current opacity-30">:</span>
-               <span className="bg-gradient-to-r from-[#764ba2] to-[#ff9ee2] bg-clip-text text-transparent font-serif italic">eleven</span>
+               <span className="bg-gradient-to-r from-[#764ba2] to-[#ff9ee2] logo-text-fix font-serif italic">eleven</span>
             </div>
             <span className="text-[7px] font-black uppercase tracking-[0.4em] opacity-40 mt-1 whitespace-nowrap">
                Scarfs - Women Clothes

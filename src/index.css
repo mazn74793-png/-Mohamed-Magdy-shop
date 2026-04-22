@@ -31,6 +31,9 @@
   .glass {
     @apply backdrop-blur-[40px] border border-white/10 rounded-[48px] shadow-2xl;
     background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
+    /* Fix for Safari backdrop-filter and child element visibility */
+    -webkit-backdrop-filter: blur(40px);
+    transform: translateZ(0);
   }
 
   .glass-input {
@@ -39,6 +42,16 @@
 
   .glass-btn {
     @apply relative overflow-hidden px-8 py-4 rounded-2xl font-black uppercase tracking-[2px] cursor-pointer transition-all duration-300 active:scale-95;
+  }
+
+  .logo-text-fix {
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    /* Fallback for Safari bugs where it stays transparent */
+    will-change: transform;
+    transform: translateZ(0);
   }
 }
 
