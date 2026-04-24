@@ -29,15 +29,21 @@
 
 @layer components {
   .glass {
-    @apply backdrop-blur-[40px] border border-white/10 rounded-[48px] shadow-2xl;
-    background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
+    @apply backdrop-blur-[40px] border border-black/5 dark:border-white/10 rounded-[48px] shadow-2xl;
+    body.dark-mode & {
+      background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
+    }
+    body.light-mode & {
+      background: rgba(255, 255, 255, 0.7);
+      @apply border-black/10;
+    }
     /* Fix for Safari backdrop-filter and child element visibility */
     -webkit-backdrop-filter: blur(40px);
     transform: translateZ(0);
   }
 
   .glass-input {
-    @apply w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm outline-none focus:border-accent-pink/50 transition-all placeholder:opacity-30;
+    @apply w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl p-4 text-sm outline-none focus:border-accent-pink/50 transition-all placeholder:opacity-30;
   }
 
   .glass-btn {

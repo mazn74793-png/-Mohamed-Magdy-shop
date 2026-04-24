@@ -609,9 +609,11 @@ export default function App() {
     if (theme === 'dark') {
       document.body.classList.add('dark-mode');
       document.body.classList.remove('light-mode');
+      document.documentElement.classList.add('dark');
     } else {
       document.body.classList.add('light-mode');
       document.body.classList.remove('dark-mode');
+      document.documentElement.classList.remove('dark');
     }
   }, [theme]);
 
@@ -2175,61 +2177,61 @@ export default function App() {
             </p>
 
             {/* Our Stores Section */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-4xl pt-10 border-t border-white/10">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl pt-10 border-t border-black/10 dark:border-white/20">
               {settings.branchShoubra && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-center gap-2 text-accent-pink font-bold text-[10px] uppercase tracking-widest">
-                    <MapPin size={14} /> {lang === 'AR' ? 'فرع شبرا' : 'Shoubra Branch'}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-center gap-2 text-accent-pink font-black text-[12px] uppercase tracking-[4px]">
+                    <MapPin size={18} /> {lang === 'AR' ? 'فرع شبرا' : 'Shoubra Branch'}
                   </div>
-                  <p className="text-[11px] opacity-70 leading-relaxed font-bold">{settings.branchShoubra}</p>
+                  <p className="text-sm text-black dark:text-white leading-relaxed font-black px-4">{settings.branchShoubra}</p>
                 </div>
               )}
               {settings.branchRoxy && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-center gap-2 text-accent-pink font-bold text-[10px] uppercase tracking-widest">
-                    <MapPin size={14} /> {lang === 'AR' ? 'فرع روكسي' : 'Roxy Branch'}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-center gap-2 text-accent-pink font-black text-[12px] uppercase tracking-[4px]">
+                    <MapPin size={18} /> {lang === 'AR' ? 'فرع روكسي' : 'Roxy Branch'}
                   </div>
-                  <p className="text-[11px] opacity-70 leading-relaxed font-bold">{settings.branchRoxy}</p>
+                  <p className="text-sm text-black dark:text-white leading-relaxed font-black px-4">{settings.branchRoxy}</p>
                 </div>
               )}
               {settings.phone && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-center gap-2 text-accent-pink font-bold text-[10px] uppercase tracking-widest">
-                    <Smartphone size={14} /> {lang === 'AR' ? 'تواصل معنا' : 'Contact Us'}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-center gap-2 text-black dark:text-white font-black text-[12px] uppercase tracking-[4px]">
+                    <Smartphone size={18} /> {lang === 'AR' ? 'تواصل معنا' : 'Contact Us'}
                   </div>
-                  <p className="text-lg font-black tracking-widest text-[#25D366]">{settings.phone}</p>
+                  <p className="text-2xl font-black tracking-widest text-[#25D366] drop-shadow-[0_0_15px_rgba(37,211,102,0.4)]">{settings.phone}</p>
                 </div>
               )}
             </div>
             
-            <div className="flex gap-6 mt-4">
+            <div className="flex gap-8 mt-12">
               {settings.facebook && (
                 <a href={settings.facebook} target="_blank" rel="noreferrer" 
-                   className="p-4 glass rounded-[24px] bg-white/5 hover:bg-[#1877F2] text-white transition-all hover:scale-110 active:scale-95 group">
-                  <FacebookIcon size={24} className="group-hover:scale-110 transition-transform" />
+                   className="p-5 glass rounded-[28px] bg-white/40 dark:bg-white/10 hover:bg-[#1877F2] text-black dark:text-white hover:!text-white transition-all duration-300 hover:scale-110 active:scale-95 group shadow-xl border-black/5">
+                  <FacebookIcon size={32} className="group-hover:scale-110 transition-transform" />
                 </a>
               )}
               {settings.instagram && (
                 <a href={settings.instagram} target="_blank" rel="noreferrer" 
-                   className="p-4 glass rounded-[24px] bg-white/5 hover:bg-gradient-to-tr hover:from-[#f9ce34] hover:via-[#ee2a7b] hover:to-[#6228d7] text-white transition-all hover:scale-110 active:scale-95 group">
-                  <InstagramIcon size={24} className="group-hover:scale-110 transition-transform" />
+                   className="p-5 glass rounded-[28px] bg-white/40 dark:bg-white/10 hover:bg-gradient-to-tr hover:from-[#f9ce34] hover:via-[#ee2a7b] hover:to-[#6228d7] text-black dark:text-white hover:!text-white transition-all duration-300 hover:scale-110 active:scale-95 group shadow-xl border-black/5">
+                  <InstagramIcon size={32} className="group-hover:scale-110 transition-transform" />
                 </a>
               )}
               {settings.tiktok && (
                 <a href={settings.tiktok} target="_blank" rel="noreferrer" 
-                   className="p-4 glass rounded-[24px] bg-white/5 hover:bg-black text-white transition-all hover:scale-110 active:scale-95 group">
-                  <TikTokIcon size={24} className="group-hover:scale-110 transition-transform" />
+                   className="p-5 glass rounded-[28px] bg-white/40 dark:bg-white/10 hover:bg-black text-black dark:text-white hover:!text-white transition-all duration-300 hover:scale-110 active:scale-95 group shadow-xl border-black/5">
+                  <TikTokIcon size={32} className="group-hover:scale-110 transition-transform" />
                 </a>
               )}
               {settings.whatsapp && (
                 <a href={`https://wa.me/${settings.whatsapp}`} target="_blank" rel="noreferrer" 
-                   className="p-4 glass rounded-[24px] bg-white/5 hover:bg-[#25D366] text-white transition-all hover:scale-110 active:scale-95 group">
-                  <WhatsAppIcon size={24} className="group-hover:scale-110 transition-transform" />
+                   className="p-5 glass rounded-[28px] bg-white/40 dark:bg-white/10 hover:bg-[#25D366] text-black dark:text-white hover:!text-white transition-all duration-300 hover:scale-110 active:scale-95 group shadow-xl border-black/5">
+                  <WhatsAppIcon size={32} className="group-hover:scale-110 transition-transform" />
                 </a>
               )}
             </div>
 
-            <div className="w-full h-px bg-white/10" />
+            <div className="w-full h-px bg-black/10 dark:bg-white/10" />
             
             <p className="text-[10px] font-bold tracking-[4px] uppercase opacity-30">© 2026 Eleven Eleven Fashion Platform</p>
           </div>
