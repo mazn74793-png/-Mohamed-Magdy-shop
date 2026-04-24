@@ -60,6 +60,12 @@ interface Review {
   createdAt: any;
 }
 
+interface NewsletterSubscriber {
+  id: string;
+  email: string;
+  subscribedAt: any;
+}
+
 interface ProductVariant {
   id: string;
   name: { EN: string; AR: string };
@@ -162,6 +168,10 @@ interface Settings {
   branchShoubra?: string;
   branchRoxy?: string;
   phone?: string;
+  announcement?: { EN: string; AR: string };
+  showAnnouncement?: boolean;
+  newsletterTitle?: { EN: string; AR: string };
+  newsletterText?: { EN: string; AR: string };
 }
 
 interface ToastMessage {
@@ -195,6 +205,12 @@ const TRANSLATIONS = {
   PRODUCT_PUBLISHED: { EN: "Product published successfully!", AR: "تم نشر المنتج بنجاح!" },
   PRODUCT_UPDATED: { EN: "Product updated successfully!", AR: "تم تحديث المنتج بنجاح!" },
   PRODUCT_DELETED: { EN: "Product deleted!", AR: "تم حذف المنتج!" },
+  WISHLIST: { EN: "Wishlist", AR: "قائمة الأمنيات" },
+  EMPTY_WISHLIST: { EN: "Your wishlist is empty", AR: "قائمة الأمنيات فارغة" },
+  SUBSCRIBE: { EN: "Subscribe", AR: "اشترك" },
+  NEWSLETTER: { EN: "Newsletter", AR: "النشرة الإخبارية" },
+  SUBSCRIBE_TEXT: { EN: "Be the first to know about new arrivals and exclusive offers.", AR: "كن أول من يعلم بالوصل الجديد والعروض الحصرية." },
+  SUBSCRIBED: { EN: "Subscribed successfully!", AR: "تم الاشتراك بنجاح!" },
   EGP: { EN: "EGP", AR: "ج.م" },
   LOGIN_GOOGLE: { EN: "Login with Google", AR: "تسجيل الدخول بجوجل" },
   LOGOUT: { EN: "Logout", AR: "تسجيل الخروج" },
@@ -227,6 +243,9 @@ const TRANSLATIONS = {
   MARK_READ: { EN: "Mark as Read", AR: "تحديد كمقروء" },
   TAB_PRODUCTS: { EN: "Products", AR: "المنتجات" },
   TAB_ORDERS: { EN: "Orders", AR: "الطلبات" },
+  TAB_CUSTOMERS: { EN: "Customers", AR: "العملاء" },
+  TAB_COUPONS: { EN: "Coupons", AR: "القسائم" },
+  TAB_NEWSLETTER: { EN: "Newsletter", AR: "النشرة" },
   TAB_SETTINGS: { EN: "Settings", AR: "الإعدادات" },
   TAB_DASHBOARD: { EN: "Dashboard", AR: "لوحة التحكم" },
   TAB_ADMINS: { EN: "Team", AR: "الفريق" },
@@ -323,14 +342,16 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('COLLECTIONS');
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [wishlist, setWishlist] = useState<string[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
-  type AdminTab = 'PRODUCTS' | 'ORDERS' | 'SETTINGS' | 'DASHBOARD' | 'ADMINS' | 'COUPONS' | 'CUSTOMERS';
+  type AdminTab = 'PRODUCTS' | 'ORDERS' | 'SETTINGS' | 'DASHBOARD' | 'ADMINS' | 'COUPONS' | 'CUSTOMERS' | 'NEWSLETTER';
   const [adminTab, setAdminTab] = useState<AdminTab>('DASHBOARD');
   const [orders, setOrders] = useState<Order[]>([]);
+  const [subscribers, setSubscribers] = useState<NewsletterSubscriber[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [couponCodeInput, setCouponCodeInput] = useState('');
@@ -348,7 +369,11 @@ export default function App() {
     heroDesc: { EN: TRANSLATIONS.HERO_DESC.EN, AR: TRANSLATIONS.HERO_DESC.AR },
     branchShoubra: 'دوران شبرا مصر - ١٢١ شارع شبرا الرئيسي بجوار حلواني الحلمية - القاهرة',
     branchRoxy: '8 شارع بطرس غالي - ممشى روكسي',
-    phone: '01102505666'
+    phone: '01102505666',
+    announcement: { EN: 'Free shipping on orders more than 1000 EGP!', AR: 'توصيل مجاني للطلبات فوق ١٠٠٠ ج.م!' },
+    showAnnouncement: true,
+    newsletterTitle: { EN: TRANSLATIONS.NEWSLETTER.EN, AR: TRANSLATIONS.NEWSLETTER.AR },
+    newsletterText: { EN: TRANSLATIONS.SUBSCRIBE_TEXT.EN, AR: TRANSLATIONS.SUBSCRIBE_TEXT.AR }
   });
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
@@ -419,8 +444,9 @@ export default function App() {
     
     if (activeTab === 'NEW_ARRIVALS') return !!p.isNew;
     if (activeTab === 'SALE') return !!p.isSale;
+    if (activeTab === 'WISHLIST') return wishlist.includes(p.id);
     return true;
-  }), [products, lang, searchQuery, activeTab]);
+  }), [products, lang, searchQuery, activeTab, wishlist]);
 
   const stats = useMemo(() => {
     const totalRevenue = orders.reduce((sum, o) => sum + (o.status === 'completed' ? o.total : 0), 0);
@@ -485,12 +511,19 @@ export default function App() {
     // Load Cart from Local Storage
     const savedCart = localStorage.getItem('eleven_eleven_cart');
     if (savedCart) setCart(JSON.parse(savedCart));
+    // Load Wishlist from Local Storage
+    const savedWishlist = localStorage.getItem('eleven_eleven_wishlist');
+    if (savedWishlist) setWishlist(JSON.parse(savedWishlist));
     return () => unsubscribe();
   }, []);
 
   useEffect(() => {
     localStorage.setItem('eleven_eleven_cart', JSON.stringify(cart));
   }, [cart]);
+
+  useEffect(() => {
+    localStorage.setItem('eleven_eleven_wishlist', JSON.stringify(wishlist));
+  }, [wishlist]);
 
   useEffect(() => {
     if (!user) {
@@ -592,7 +625,12 @@ export default function App() {
     const unsubscribe = onSnapshot(collection(db, 'coupons'), (snapshot) => {
       setCoupons(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Coupon)));
     }, (err) => console.error("Coupons Error:", err));
-    return () => unsubscribe();
+
+    const unsubSubscribers = onSnapshot(collection(db, 'newsletter'), (snapshot) => {
+      setSubscribers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as NewsletterSubscriber)));
+    }, (err) => console.error("Newsletter Error:", err));
+
+    return () => { unsubscribe(); unsubSubscribers(); };
   }, [user]);
 
   const customers = useMemo(() => {
@@ -1060,18 +1098,72 @@ export default function App() {
   };
 
   const addReview = async (productId: string, rating: number, comment: string) => {
-    if (!user) return;
+    if (!user) {
+      handleLogin();
+      return;
+    }
     try {
       await addDoc(collection(db, 'products', productId, 'reviews'), {
-        userName: user.displayName || "Client",
-        userPhoto: user.photoURL || "",
+        userId: user.uid,
+        userName: user.displayName || 'Anonymous',
+        userPhoto: user.photoURL,
         rating,
         comment,
         createdAt: serverTimestamp()
       });
       notify({ EN: "Review added!", AR: "تم إضافة التقييم!" });
-    } catch (e) { console.error(e); }
+    } catch (e: any) {
+      console.error(e);
+      notify({ EN: "Error adding review", AR: "خطأ في إضافة التقييم" }, 'error');
+    }
   };
+
+  const shareProduct = async (product: Product) => {
+    const shareData = {
+      title: getL(product.name),
+      text: getL(product.description),
+      url: window.location.href
+    };
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        console.error('Error sharing', err);
+      }
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      notify({ EN: "Link copied to clipboard!", AR: "تم نسخ الرابط!" });
+    }
+  };
+
+  const subscribeNewsletter = async (email: string) => {
+    if (!email) return;
+    try {
+      await addDoc(collection(db, 'newsletter'), {
+        email,
+        subscribedAt: serverTimestamp()
+      });
+      notify({ EN: TRANSLATIONS.SUBSCRIBED.EN, AR: TRANSLATIONS.SUBSCRIBED.AR });
+      return true;
+    } catch (e) {
+      console.error(e);
+      notify({ EN: "Error subscribing", AR: "خطأ في الاشتراك" }, 'error');
+      return false;
+    }
+  };
+
+  const toggleWishlist = (productId: string) => {
+    setWishlist(prev => 
+      prev.includes(productId) 
+        ? prev.filter(id => id !== productId)
+        : [...prev, productId]
+    );
+    notify({
+      EN: wishlist.includes(productId) ? "Removed from wishlist" : "Added to wishlist",
+      AR: wishlist.includes(productId) ? "تم الحذف من قائمة الأمنيات" : "تمت الإضافة لقائمة الأمنيات"
+    });
+  };
+
   const addToCart = (product: Product, variant?: ProductVariant | null) => {
     // If product has variants and none is provided, notify
     if (product.variants && product.variants.length > 0 && !variant) {
@@ -1323,6 +1415,12 @@ export default function App() {
       </div>
 
       <div className="w-full max-w-[1400px] mx-auto p-4 sm:p-8 md:p-12 relative z-10" dir={lang === 'AR' ? 'rtl' : 'ltr'}>
+        {/* Announcement Bar */}
+        {settings.showAnnouncement && settings.announcement && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="bg-accent-pink text-white text-center py-2 px-4 mb-4 rounded-2xl font-black text-[10px] uppercase tracking-[3px] overflow-hidden shadow-2xl">
+            {getL(settings.announcement)}
+          </motion.div>
+        )}
         {/* Header */}
         <header className="flex flex-wrap items-center justify-between mb-8 sm:mb-16 gap-6 glass p-6 sm:px-10 rounded-[32px] sm:rounded-[48px] bg-white/5 border-white/10">
           <div className="flex flex-col items-center sm:items-start group cursor-pointer" onClick={() => setActiveTab('COLLECTIONS')}>
@@ -1374,6 +1472,11 @@ export default function App() {
             <div className="relative">
               <ShoppingBag size={24} className="cursor-pointer opacity-70 hover:opacity-100" onClick={() => setIsCartOpen(true)} />
               {cart.length > 0 && <span className="absolute -top-2 -right-2 w-5 h-5 bg-accent-pink rounded-full flex items-center justify-center text-[10px] font-bold text-black shadow-lg">{cart.reduce((a, b) => a + b.quantity, 0)}</span>}
+            </div>
+
+            <div className="relative">
+              <Heart size={24} className={`cursor-pointer transition-all ${activeTab === 'WISHLIST' ? 'text-accent-pink opacity-100' : 'opacity-70 hover:opacity-100'}`} onClick={() => setActiveTab('WISHLIST')} />
+              {wishlist.length > 0 && <span className="absolute -top-2 -right-2 w-5 h-5 bg-accent-pink rounded-full flex items-center justify-center text-[10px] font-bold text-black shadow-lg">{wishlist.length}</span>}
             </div>
 
             {user ? (
@@ -1434,7 +1537,7 @@ export default function App() {
                   </div>
 
                   <div className="flex gap-4 border-b border-white/10 pb-4 overflow-x-auto custom-scrollbar">
-                    {['DASHBOARD', 'PRODUCTS', 'ORDERS', 'COUPONS', 'CUSTOMERS', 'SETTINGS', 'ADMINS'].map(tab => (
+                    {['DASHBOARD', 'PRODUCTS', 'ORDERS', 'COUPONS', 'CUSTOMERS', 'NEWSLETTER', 'SETTINGS', 'ADMINS'].map(tab => (
                       <button key={tab} onClick={() => setAdminTab(tab as any)} className={`px-6 py-2 rounded-full text-[10px] font-black tracking-widest transition-all relative ${adminTab === tab ? 'bg-accent-pink text-white shadow-lg' : 'opacity-40 hover:opacity-100 text-white'}`}>
                         {t(`TAB_${tab}` as any)}
                         {tab === 'ORDERS' && orders.filter(o => o.status === 'pending').length > 0 && (
@@ -1876,6 +1979,20 @@ export default function App() {
                     </div>
 
                     <div className="space-y-6">
+                      <h3 className="text-xl font-bold italic">Announcement Bar</h3>
+                      <div className="grid grid-cols-1 gap-4">
+                        <div className="flex items-center gap-4">
+                          <label className="text-[10px] font-bold uppercase opacity-50">Show Bar</label>
+                          <input type="checkbox" checked={settings.showAnnouncement} onChange={e => setSettings({...settings, showAnnouncement: e.target.checked})} className="w-5 h-5 accent-accent-pink" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                           <input type="text" className="glass-input !bg-white/5 !text-white text-xs" value={settings.announcement?.EN || ''} onChange={e => setSettings({...settings, announcement: {...settings.announcement, EN: e.target.value}} as any)} placeholder="Announcement EN" />
+                           <input type="text" className="glass-input !bg-white/5 !text-white text-xs" value={settings.announcement?.AR || ''} onChange={e => setSettings({...settings, announcement: {...settings.announcement, AR: e.target.value}} as any)} placeholder="الإعلان بالعربية" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
                       <h3 className="text-xl font-bold italic">Store Locations</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1">
@@ -1927,6 +2044,35 @@ export default function App() {
                     </div>
 
                     <button onClick={updateSettings} className="glass-btn bg-accent-pink text-white py-4 px-12 hover:scale-105 transition-all font-bold tracking-widest uppercase">{t('SAVE_SETTINGS')}</button>
+                  </motion.div>
+                )}
+
+                 {adminTab === 'NEWSLETTER' && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-12">
+                    <div className="flex items-center justify-between">
+                       <h3 className="text-3xl font-black italic">{t('NEWSLETTER')} Subscribers</h3>
+                       <span className="glass px-6 py-2 rounded-full text-xs font-bold bg-accent-pink/10 text-accent-pink">{subscribers.length} Emails</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-white">
+                        <thead>
+                          <tr className="border-b border-white/10">
+                            <th className="py-4 text-[10px] uppercase opacity-40">Email Address</th>
+                            <th className="py-4 text-[10px] uppercase opacity-40">Subscribed At</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {subscribers.map((s) => (
+                            <tr key={s.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                              <td className="py-4 font-bold">{s.email}</td>
+                              <td className="py-4 opacity-40 text-xs">
+                                {s.subscribedAt?.toDate ? s.subscribedAt.toDate().toLocaleString() : 'Just now'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </motion.div>
                 )}
 
@@ -2159,6 +2305,9 @@ export default function App() {
                             <button onClick={(e) => { e.stopPropagation(); addToCart(product); }} className={`absolute bottom-4 ${lang === 'AR' ? 'left-4' : 'right-4'} p-3 glass rounded-2xl opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all hover:bg-white hover:text-black shadow-xl`}>
                               <ShoppingBag size={18} />
                             </button>
+                            <button onClick={(e) => { e.stopPropagation(); toggleWishlist(product.id); }} className={`absolute bottom-4 ${lang === 'AR' ? 'right-4 sm:right-20' : 'left-4 sm:left-20'} p-3 glass rounded-2xl opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all hover:bg-white ${wishlist.includes(product.id) ? 'text-accent-pink' : 'text-current'} shadow-xl`}>
+                              <Heart size={18} fill={wishlist.includes(product.id) ? 'currentColor' : 'none'} />
+                            </button>
                           </div>
                           <h3 className="text-sm font-bold mb-1 opacity-80 line-clamp-1">{getL(product.name)}</h3>
                           <div className="flex items-center justify-center gap-2">
@@ -2388,24 +2537,34 @@ export default function App() {
                      )}
 
                      <div className="flex flex-col gap-5">
+                        <div className="grid grid-cols-2 gap-4">
+                           <button 
+                             onClick={() => addToCart(selectedProduct, selectedVariant)}
+                             disabled={selectedProduct.stock <= 0 && (!selectedVariant || (selectedVariant && selectedVariant.stock <= 0))}
+                             className={`py-7 rounded-[32px] font-black uppercase tracking-[4px] transition-all shadow-4xl flex items-center justify-center gap-4 ${(selectedProduct.stock > 0 || (selectedVariant && selectedVariant.stock > 0)) ? 'bg-accent-pink text-white hover:scale-[1.02] active:scale-95' : 'bg-gray-500/20 text-gray-400 cursor-not-allowed'}`}
+                           >
+                             <ShoppingBag size={20} />
+                             {t('ADD_TO_CART')}
+                           </button>
+                           <div className="flex gap-4">
+                             <button onClick={() => toggleWishlist(selectedProduct.id)} className={`flex-1 glass rounded-[32px] transition-all shadow-xl flex items-center justify-center ${wishlist.includes(selectedProduct.id) ? 'text-accent-pink' : 'opacity-40 hover:opacity-100'}`}>
+                                <Heart size={24} fill={wishlist.includes(selectedProduct.id) ? 'currentColor' : 'none'} />
+                             </button>
+                             <button onClick={() => shareProduct(selectedProduct)} className="flex-1 glass rounded-[32px] bg-black/5 dark:bg-white/5 opacity-40 hover:opacity-100 flex items-center justify-center transition-all shadow-xl">
+                                <Share2 size={24} />
+                             </button>
+                           </div>
+                        </div>
                         <button 
-                          onClick={() => addToCart(selectedProduct, selectedVariant)}
-                          disabled={selectedProduct.stock <= 0 && (!selectedVariant || (selectedVariant && selectedVariant.stock <= 0))}
-                          className={`w-full py-7 rounded-[32px] font-black uppercase tracking-[8px] transition-all shadow-4xl flex items-center justify-center gap-4 ${(selectedProduct.stock > 0 || (selectedVariant && selectedVariant.stock > 0)) ? 'bg-accent-pink text-white hover:scale-[1.02] active:scale-95' : 'bg-gray-500/20 text-gray-400 cursor-not-allowed'}`}
+                           onClick={() => { 
+                             addToCart(selectedProduct, selectedVariant); 
+                             setSelectedProduct(null);
+                             setIsCheckoutOpen(true); 
+                           }}
+                           disabled={selectedProduct.stock <= 0 && (!selectedVariant || (selectedVariant && selectedVariant.stock <= 0))}
+                           className={`w-full py-7 rounded-[32px] font-black uppercase tracking-[8px] transition-all shadow-4xl flex items-center justify-center gap-4 ${(selectedProduct.stock > 0 || (selectedVariant && selectedVariant.stock > 0)) ? 'bg-black text-white dark:bg-white dark:text-black hover:scale-[1.02] active:scale-95' : 'hidden'}`}
                         >
-                          <ShoppingBag size={24} />
-                          {t('ADD_TO_CART')}
-                        </button>
-                        <button 
-                          onClick={() => { 
-                            addToCart(selectedProduct, selectedVariant); 
-                            setSelectedProduct(null);
-                            setIsCheckoutOpen(true); 
-                          }}
-                          disabled={selectedProduct.stock <= 0 && (!selectedVariant || (selectedVariant && selectedVariant.stock <= 0))}
-                          className={`w-full py-7 rounded-[32px] font-black uppercase tracking-[8px] transition-all shadow-4xl flex items-center justify-center gap-4 ${(selectedProduct.stock > 0 || (selectedVariant && selectedVariant.stock > 0)) ? 'bg-black text-white dark:bg-white dark:text-black hover:scale-[1.02] active:scale-95' : 'hidden'}`}
-                        >
-                          {lang === 'AR' ? 'شراء الآن' : 'Buy Now'}
+                           {lang === 'AR' ? 'شراء الآن' : 'Buy Now'}
                         </button>
                      </div>
                   </div>
@@ -2861,19 +3020,6 @@ export default function App() {
           </>
         )}
       </AnimatePresence>
-
-      {/* Floating WhatsApp for Customer */}
-      <a 
-        href={`https://wa.me/${settings.whatsapp}`} 
-        target="_blank" 
-        rel="noreferrer" 
-        className={`fixed bottom-6 ${lang === 'AR' ? 'left-6' : 'right-6'} z-[100] w-16 h-16 bg-[#25D366] text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all group`}
-      >
-        <WhatsAppIcon size={32} />
-        <span className={`absolute ${lang === 'AR' ? 'left-20' : 'right-20'} bg-black text-white text-[10px] font-black uppercase tracking-widest py-2 px-4 rounded-full opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-xl`} style={{ transform: 'translateZ(0)' }}>
-          {settings.whatsappLabel || 'Contact 11:11'}
-        </span>
-      </a>
 
       {/* Decorative Background - REMOVED AS IT IS NOW DYNAMIC AT TOP */}
 
