@@ -5,7 +5,8 @@
 
 /// <reference types="vite/client" />
 
-import { ShoppingBag, LayoutDashboard, PlusCircle, Activity, Box, Search, User, Trash2, X, Globe, CheckCircle2, AlertCircle, Edit2, Save, LogOut, Sun, Moon, Smartphone, MessageCircle, BarChart3, TrendingUp, Users, Calendar, ArrowRight, Star, Heart, Share2, Upload, Trash, Menu, ArrowLeft, Filter, Check, Maximize, CreditCard, Bell, Send, Tag } from 'lucide-react';
+import { ShoppingBag, LayoutDashboard, PlusCircle, Activity, Box, Search, User, Trash2, X, Globe, CheckCircle2, AlertCircle, Edit2, Save, LogOut, Sun, Moon, Smartphone, MessageCircle, BarChart3, TrendingUp, Users, Calendar, ArrowRight, Star, Heart, Share2, Upload, Trash, Menu, ArrowLeft, Filter, Check, Maximize, CreditCard, Bell, Send, Tag, MapPin } from 'lucide-react';
+import { InstagramIcon, TikTokIcon, WhatsAppIcon, FacebookIcon } from './components/SocialIcons';
 import { motion, AnimatePresence } from 'motion/react';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -158,6 +159,9 @@ interface Settings {
   shippingFee: number;
   heroTitle: { EN: string; AR: string };
   heroDesc: { EN: string; AR: string };
+  branchShoubra?: string;
+  branchRoxy?: string;
+  phone?: string;
 }
 
 interface ToastMessage {
@@ -334,7 +338,10 @@ export default function App() {
     heroImage: 'https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&q=80&w=1600',
     shippingFee: 50,
     heroTitle: { EN: TRANSLATIONS.HERO_TITLE.EN, AR: TRANSLATIONS.HERO_TITLE.AR },
-    heroDesc: { EN: TRANSLATIONS.HERO_DESC.EN, AR: TRANSLATIONS.HERO_DESC.AR }
+    heroDesc: { EN: TRANSLATIONS.HERO_DESC.EN, AR: TRANSLATIONS.HERO_DESC.AR },
+    branchShoubra: 'دوران شبرا مصر - ١٢١ شارع شبرا الرئيسي بجوار حلواني الحلمية - القاهرة',
+    branchRoxy: '8 شارع بطرس غالي - ممشى روكسي',
+    phone: '01102505666'
   });
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
@@ -1858,6 +1865,24 @@ export default function App() {
                     </div>
 
                     <div className="space-y-6">
+                      <h3 className="text-xl font-bold italic">Store Locations</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold uppercase opacity-50">Shoubra Branch Address</label>
+                          <input type="text" className="glass-input !bg-white/5 !text-white text-xs" value={settings.branchShoubra || ''} onChange={e => setSettings({...settings, branchShoubra: e.target.value})} />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold uppercase opacity-50">Roxy Branch Address</label>
+                          <input type="text" className="glass-input !bg-white/5 !text-white text-xs" value={settings.branchRoxy || ''} onChange={e => setSettings({...settings, branchRoxy: e.target.value})} />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold uppercase opacity-50">Contact Phone Number</label>
+                          <input type="text" className="glass-input !bg-white/5 !text-white text-xs" value={settings.phone || ''} onChange={e => setSettings({...settings, phone: e.target.value})} />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
                       <h3 className="text-xl font-bold italic">{t('SOCIAL_LINKS')}</h3>
                       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                         {['facebook', 'instagram', 'tiktok', 'whatsapp'].map(s => (
@@ -2149,11 +2174,59 @@ export default function App() {
               {getL(settings.heroDesc)}
             </p>
 
-          <div className="flex gap-6 mt-4">
-              {settings.facebook && <a href={settings.facebook} target="_blank" rel="noreferrer" className="p-4 glass rounded-[24px] bg-white/5 hover:bg-[#1877F2] transition-all hover:scale-110"><Globe size={20} /></a>}
-              {settings.instagram && <a href={settings.instagram} target="_blank" rel="noreferrer" className="p-4 glass rounded-[24px] bg-white/5 hover:bg-[#E4405F] transition-all hover:scale-110"><Share2 size={20} /></a>}
-              {settings.tiktok && <a href={settings.tiktok} target="_blank" rel="noreferrer" className="p-4 glass rounded-[24px] bg-white/5 hover:bg-black transition-all hover:scale-110"><Smartphone size={20} /></a>}
-              {settings.whatsapp && <a href={`https://wa.me/${settings.whatsapp}`} target="_blank" rel="noreferrer" className="p-4 glass rounded-[24px] bg-white/5 hover:bg-[#25D366] transition-all hover:scale-110"><MessageCircle size={20} /></a>}
+            {/* Our Stores Section */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-4xl pt-10 border-t border-white/10">
+              {settings.branchShoubra && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-center gap-2 text-accent-pink font-bold text-[10px] uppercase tracking-widest">
+                    <MapPin size={14} /> {lang === 'AR' ? 'فرع شبرا' : 'Shoubra Branch'}
+                  </div>
+                  <p className="text-[11px] opacity-70 leading-relaxed font-bold">{settings.branchShoubra}</p>
+                </div>
+              )}
+              {settings.branchRoxy && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-center gap-2 text-accent-pink font-bold text-[10px] uppercase tracking-widest">
+                    <MapPin size={14} /> {lang === 'AR' ? 'فرع روكسي' : 'Roxy Branch'}
+                  </div>
+                  <p className="text-[11px] opacity-70 leading-relaxed font-bold">{settings.branchRoxy}</p>
+                </div>
+              )}
+              {settings.phone && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-center gap-2 text-accent-pink font-bold text-[10px] uppercase tracking-widest">
+                    <Smartphone size={14} /> {lang === 'AR' ? 'تواصل معنا' : 'Contact Us'}
+                  </div>
+                  <p className="text-lg font-black tracking-widest text-[#25D366]">{settings.phone}</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex gap-6 mt-4">
+              {settings.facebook && (
+                <a href={settings.facebook} target="_blank" rel="noreferrer" 
+                   className="p-4 glass rounded-[24px] bg-white/5 hover:bg-[#1877F2] text-white transition-all hover:scale-110 active:scale-95 group">
+                  <FacebookIcon size={24} className="group-hover:scale-110 transition-transform" />
+                </a>
+              )}
+              {settings.instagram && (
+                <a href={settings.instagram} target="_blank" rel="noreferrer" 
+                   className="p-4 glass rounded-[24px] bg-white/5 hover:bg-gradient-to-tr hover:from-[#f9ce34] hover:via-[#ee2a7b] hover:to-[#6228d7] text-white transition-all hover:scale-110 active:scale-95 group">
+                  <InstagramIcon size={24} className="group-hover:scale-110 transition-transform" />
+                </a>
+              )}
+              {settings.tiktok && (
+                <a href={settings.tiktok} target="_blank" rel="noreferrer" 
+                   className="p-4 glass rounded-[24px] bg-white/5 hover:bg-black text-white transition-all hover:scale-110 active:scale-95 group">
+                  <TikTokIcon size={24} className="group-hover:scale-110 transition-transform" />
+                </a>
+              )}
+              {settings.whatsapp && (
+                <a href={`https://wa.me/${settings.whatsapp}`} target="_blank" rel="noreferrer" 
+                   className="p-4 glass rounded-[24px] bg-white/5 hover:bg-[#25D366] text-white transition-all hover:scale-110 active:scale-95 group">
+                  <WhatsAppIcon size={24} className="group-hover:scale-110 transition-transform" />
+                </a>
+              )}
             </div>
 
             <div className="w-full h-px bg-white/10" />
@@ -2784,8 +2857,8 @@ export default function App() {
         rel="noreferrer" 
         className={`fixed bottom-6 ${lang === 'AR' ? 'left-6' : 'right-6'} z-[100] w-16 h-16 bg-[#25D366] text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all group`}
       >
-        <MessageCircle size={32} />
-        <span className={`absolute ${lang === 'AR' ? 'left-20' : 'right-20'} bg-black text-white text-[10px] font-black uppercase tracking-widest py-2 px-4 rounded-full opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-xl`}>
+        <WhatsAppIcon size={32} />
+        <span className={`absolute ${lang === 'AR' ? 'left-20' : 'right-20'} bg-black text-white text-[10px] font-black uppercase tracking-widest py-2 px-4 rounded-full opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-xl`} style={{ transform: 'translateZ(0)' }}>
           {settings.whatsappLabel || 'Contact 11:11'}
         </span>
       </a>

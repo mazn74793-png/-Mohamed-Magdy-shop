@@ -36,7 +36,10 @@ service cloud.firestore {
         && data.items is list
         && data.total is number
         && data.status in ['pending', 'processing', 'shipped', 'completed', 'cancelled']
-        && data.createdAt is timestamp;
+        && data.createdAt is timestamp
+        // Optional fields if provided
+        && (!data.keys().hasAny(['couponCode']) || data.couponCode == null || data.couponCode is string)
+        && (!data.keys().hasAny(['discountAmount']) || data.discountAmount is number);
     }
 
     function isValidReview(data) {
@@ -109,7 +112,9 @@ service cloud.firestore {
 
     match /coupons/{couponId} {
       allow list, get: if isSignedIn();
-      allow write: if isAdmin();
+      allow update: if (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['usedCount']))
+                    || isAdmin();
+      allow create, delete: if isAdmin();
     }
 
     match /test/connection {
