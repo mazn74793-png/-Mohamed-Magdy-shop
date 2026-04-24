@@ -1978,19 +1978,25 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="space-y-6">
-                      <h3 className="text-xl font-bold italic">Announcement Bar</h3>
-                      <div className="grid grid-cols-1 gap-4">
-                        <div className="flex items-center gap-4">
-                          <label className="text-[10px] font-bold uppercase opacity-50">Show Bar</label>
-                          <input type="checkbox" checked={settings.showAnnouncement} onChange={e => setSettings({...settings, showAnnouncement: e.target.checked})} className="w-5 h-5 accent-accent-pink" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                           <input type="text" className="glass-input !bg-white/5 !text-white text-xs" value={settings.announcement?.EN || ''} onChange={e => setSettings({...settings, announcement: {...settings.announcement, EN: e.target.value}} as any)} placeholder="Announcement EN" />
-                           <input type="text" className="glass-input !bg-white/5 !text-white text-xs" value={settings.announcement?.AR || ''} onChange={e => setSettings({...settings, announcement: {...settings.announcement, AR: e.target.value}} as any)} placeholder="الإعلان بالعربية" />
+                      <div className="space-y-6">
+                        <h3 className="text-xl font-bold italic">Announcement Bar (New Arrival)</h3>
+                        <div className="grid grid-cols-1 gap-4">
+                          <div className="flex items-center gap-4">
+                            <label className="text-[10px] font-bold uppercase opacity-50">Show Announcement Bar</label>
+                            <input type="checkbox" checked={settings.showAnnouncement} onChange={e => setSettings({...settings, showAnnouncement: e.target.checked})} className="w-5 h-5 accent-accent-pink cursor-pointer" />
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                             <div className="space-y-2">
+                               <label className="text-[9px] font-bold uppercase opacity-40">English Text (e.g. Free Shipping...)</label>
+                               <input type="text" className="glass-input !bg-white/5 !text-white text-xs" value={settings.announcement?.EN || ''} onChange={e => setSettings({...settings, announcement: {...settings.announcement, EN: e.target.value}} as any)} placeholder="Free Shipping on orders..." />
+                             </div>
+                             <div className="space-y-2">
+                               <label className="text-[9px] font-bold uppercase opacity-40">النص بالعربية (مثلاً: توصيل مجاني...)</label>
+                               <input type="text" className="glass-input !bg-white/5 !text-white text-xs" value={settings.announcement?.AR || ''} onChange={e => setSettings({...settings, announcement: {...settings.announcement, AR: e.target.value}} as any)} placeholder="توصيل مجاني للطلبات..." />
+                             </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
                     <div className="space-y-6">
                       <h3 className="text-xl font-bold italic">Store Locations</h3>
