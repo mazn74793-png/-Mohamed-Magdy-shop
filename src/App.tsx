@@ -392,6 +392,24 @@ export default function App() {
   const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });
   const [isFullscreenView, setIsFullscreenView] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+
+  useEffect(() => {
+    // Simulate initial loading or wait for Firestore data
+    const timer = setTimeout(() => setIsLoadingProducts(false), 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const SkeletonCard = () => (
+    <div className={`p-4 rounded-[40px] overflow-hidden ${theme === 'dark' ? 'bg-white/5' : 'bg-black/5'} animate-pulse`}>
+      <div className="aspect-[3/4] rounded-[32px] bg-white/10 dark:bg-black/10" />
+      <div className="p-4 space-y-3">
+        <div className="h-4 bg-white/10 dark:bg-black/10 rounded-full w-2/3" />
+        <div className="h-6 bg-white/10 dark:bg-black/10 rounded-full w-1/2" />
+        <div className="h-12 bg-white/10 dark:bg-black/10 rounded-[20px] w-full" />
+      </div>
+    </div>
+  );
   const dataLoaded = useRef({ products: false, settings: false });
 
   const checkLoading = () => {
@@ -1221,6 +1239,7 @@ export default function App() {
           notify({ EN: "No more stock available", AR: "لا توجد كمية كافية متوفرة" }, 'info');
           return prev;
         }
+        notify({ EN: `+1 ${getL(product.name, 'EN')}`, AR: `+1 ${getL(product.name, 'AR')}` });
         return prev.map(item => {
            const itemId = item.variantId ? `${item.id}-${item.variantId}` : item.id;
            return itemId === cartId ? { ...item, quantity: item.quantity + 1 } : item;
@@ -1236,9 +1255,16 @@ export default function App() {
         variantId: variant?.id,
         variantName: variant?.name
       };
+      
+      notify({ EN: "✨ Added to cart", AR: "✨ تمّت الإضافة للسلة" });
+      
+      // Auto open cart on mobile if added successfully for better UX feedback
+      if (window.innerWidth < 768) {
+        setIsCartOpen(true);
+      }
+      
       return [...prev, newCartItem];
     });
-    notify(TRANSLATIONS.ADDED_TO_CART);
   };
 
   const removeFromCart = (id: string, variantId?: string) => {
@@ -1498,7 +1524,16 @@ export default function App() {
 
             <div className="relative">
               <ShoppingBag size={24} className="cursor-pointer opacity-70 hover:opacity-100" onClick={() => setIsCartOpen(true)} />
-              {cart.length > 0 && <span className="absolute -top-2 -right-2 w-5 h-5 bg-accent-pink rounded-full flex items-center justify-center text-[10px] font-bold text-black shadow-lg">{cart.reduce((a, b) => a + b.quantity, 0)}</span>}
+              {cart.length > 0 && (
+                <motion.span 
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  key={cart.reduce((a, b) => a + b.quantity, 0)}
+                  className="absolute -top-2 -right-2 w-5 h-5 bg-accent-pink rounded-full flex items-center justify-center text-[10px] font-bold text-black shadow-lg"
+                >
+                  {cart.reduce((a, b) => a + b.quantity, 0)}
+                </motion.span>
+              )}
             </div>
 
             <div className="relative">
@@ -2300,7 +2335,11 @@ export default function App() {
               </motion.section>
             )}
 
-            {activeTab !== 'ACCOUNT' && (filtered.length === 0 ? (
+            {activeTab !== 'ACCOUNT' && (isLoadingProducts ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-8">
+                {Array(12).fill(0).map((_, i) => <SkeletonCard key={i} />)}
+              </div>
+            ) : filtered.length === 0 ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-20 opacity-30 gap-6">
                 <Search size={64} strokeWidth={1} />
                 <p className="text-xl font-light">{t('NO_PRODUCTS')}</p>

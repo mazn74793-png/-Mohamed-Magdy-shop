@@ -12,8 +12,10 @@
 
 /* Fix for disconnected Arabic letters on iOS/Safari */
 [dir='rtl'] *, 
-[lang='AR'] * {
+[lang='AR'] *,
+.logo-text-fix {
   letter-spacing: 0 !important;
+  -webkit-font-smoothing: antialiased;
 }
 
 @layer base {
