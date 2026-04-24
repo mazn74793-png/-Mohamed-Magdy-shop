@@ -34,8 +34,8 @@
       background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
     }
     body.light-mode & {
-      background: rgba(255, 255, 255, 0.7);
-      @apply border-black/10;
+      background: rgba(255, 255, 255, 0.95);
+      @apply border-black/10 shadow-lg;
     }
     /* Fix for Safari backdrop-filter and child element visibility */
     -webkit-backdrop-filter: blur(40px);

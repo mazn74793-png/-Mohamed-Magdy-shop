@@ -2169,21 +2169,21 @@ export default function App() {
           <div className="relative z-10 flex flex-col items-center gap-10">
             <div className="text-3xl font-black tracking-[8px] uppercase logo flex items-center gap-2">
               <div className="w-2 h-10 bg-accent-pink" />
-              <span className="text-black dark:text-white">{settings.siteName || '11:11'}</span>
+              <span className={theme === 'dark' ? "text-white" : "text-black"}>{settings.siteName || '11:11'}</span>
             </div>
             
-            <p className="max-w-md text-black/50 dark:text-white/50 text-sm font-light leading-relaxed">
+            <p className={`max-w-md ${theme === 'dark' ? "text-white/50" : "text-black/60"} text-sm font-light leading-relaxed`}>
               {getL(settings.heroDesc)}
             </p>
 
             {/* Our Stores Section */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl pt-10 border-t border-black/10 dark:border-white/20">
+            <div className={`grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl pt-10 border-t ${theme === 'dark' ? "border-white/20" : "border-black/10"}`}>
               {settings.branchShoubra && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-center gap-2 text-accent-pink font-black text-[12px] uppercase tracking-[4px]">
                     <MapPin size={18} /> {lang === 'AR' ? 'فرع شبرا' : 'Shoubra Branch'}
                   </div>
-                  <p className="text-sm !text-black dark:!text-white leading-relaxed font-black px-4">{settings.branchShoubra}</p>
+                  <p className={`text-sm leading-relaxed font-black px-4 ${theme === 'dark' ? "text-white" : "text-black"}`}>{settings.branchShoubra}</p>
                 </div>
               )}
               {settings.branchRoxy && (
@@ -2191,13 +2191,14 @@ export default function App() {
                   <div className="flex items-center justify-center gap-2 text-accent-pink font-black text-[12px] uppercase tracking-[4px]">
                     <MapPin size={18} /> {lang === 'AR' ? 'فرع روكسي' : 'Roxy Branch'}
                   </div>
-                  <p className="text-sm !text-black dark:!text-white leading-relaxed font-black px-4">{settings.branchRoxy}</p>
+                  <p className={`text-sm leading-relaxed font-black px-4 ${theme === 'dark' ? "text-white" : "text-black"}`}>{settings.branchRoxy}</p>
                 </div>
               )}
               {settings.phone && (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-center gap-2 text-black dark:text-white font-black text-[12px] uppercase tracking-[4px]">
-                    <Smartphone size={18} /> {lang === 'AR' ? 'تواصل معنا' : 'Contact Us'}
+                  <div className="flex items-center justify-center gap-2 font-black text-[12px] uppercase tracking-[4px] opacity-70">
+                    <Smartphone size={18} className={theme === 'dark' ? "text-white" : "text-black"} /> 
+                    <span className={theme === 'dark' ? "text-white" : "text-black"}>{lang === 'AR' ? 'تواصل معنا' : 'Contact Us'}</span>
                   </div>
                   <p className="text-2xl font-black tracking-widest text-[#25D366] drop-shadow-[0_0_15px_rgba(37,211,102,0.4)]">{settings.phone}</p>
                 </div>
@@ -2207,33 +2208,33 @@ export default function App() {
             <div className="flex gap-8 mt-12">
               {settings.facebook && (
                 <a href={settings.facebook} target="_blank" rel="noreferrer" 
-                   className="p-5 glass rounded-[28px] bg-black/5 dark:bg-white/10 hover:bg-[#1877F2] text-neutral-900 dark:text-white hover:!text-white transition-all duration-300 hover:scale-110 active:scale-95 group shadow-xl border-black/5">
+                   className={`p-5 glass rounded-[28px] hover:bg-[#1877F2] hover:text-white transition-all duration-300 hover:scale-110 active:scale-95 group shadow-xl ${theme === 'dark' ? "bg-white/10 text-white" : "bg-black/5 text-black"}`}>
                   <FacebookIcon size={32} className="group-hover:scale-110 transition-transform fill-current" />
                 </a>
               )}
               {settings.instagram && (
                 <a href={settings.instagram} target="_blank" rel="noreferrer" 
-                   className="p-5 glass rounded-[28px] bg-black/5 dark:bg-white/10 hover:bg-gradient-to-tr hover:from-[#f9ce34] hover:via-[#ee2a7b] hover:to-[#6228d7] text-neutral-900 dark:text-white hover:!text-white transition-all duration-300 hover:scale-110 active:scale-95 group shadow-xl border-black/5">
+                   className={`p-5 glass rounded-[28px] hover:bg-gradient-to-tr hover:from-[#f9ce34] hover:via-[#ee2a7b] hover:to-[#6228d7] hover:text-white transition-all duration-300 hover:scale-110 active:scale-95 group shadow-xl ${theme === 'dark' ? "bg-white/10 text-white" : "bg-black/5 text-black"}`}>
                   <InstagramIcon size={32} className="group-hover:scale-110 transition-transform stroke-current" />
                 </a>
               )}
               {settings.tiktok && (
                 <a href={settings.tiktok} target="_blank" rel="noreferrer" 
-                   className="p-5 glass rounded-[28px] bg-black/5 dark:bg-white/10 hover:bg-black text-neutral-900 dark:text-white hover:!text-white transition-all duration-300 hover:scale-110 active:scale-95 group shadow-xl border-black/5">
+                   className={`p-5 glass rounded-[28px] hover:bg-black hover:text-white transition-all duration-300 hover:scale-110 active:scale-95 group shadow-xl ${theme === 'dark' ? "bg-white/10 text-white" : "bg-black/5 text-black"}`}>
                   <TikTokIcon size={32} className="group-hover:scale-110 transition-transform fill-current" />
                 </a>
               )}
               {settings.whatsapp && (
                 <a href={`https://wa.me/${settings.whatsapp}`} target="_blank" rel="noreferrer" 
-                   className="p-5 glass rounded-[28px] bg-black/5 dark:bg-white/10 hover:bg-[#25D366] text-neutral-900 dark:text-white hover:!text-white transition-all duration-300 hover:scale-110 active:scale-95 group shadow-xl border-black/5">
+                   className={`p-5 glass rounded-[28px] hover:bg-[#25D366] hover:text-white transition-all duration-300 hover:scale-110 active:scale-95 group shadow-xl ${theme === 'dark' ? "bg-white/10 text-white" : "bg-black/5 text-black"}`}>
                   <WhatsAppIcon size={32} className="group-hover:scale-110 transition-transform fill-current" />
                 </a>
               )}
             </div>
 
-            <div className="w-full h-px bg-black/10 dark:bg-white/10" />
+            <div className={`w-full h-px ${theme === 'dark' ? "bg-white/10" : "bg-black/10"}`} />
             
-            <p className="text-[10px] font-bold tracking-[4px] uppercase text-black/30 dark:text-white/30">© 2026 Eleven Eleven Fashion Platform</p>
+            <p className={`text-[10px] font-bold tracking-[4px] uppercase ${theme === 'dark' ? "text-white/30" : "text-black/40"}`}>© 2026 Eleven Eleven Fashion Platform</p>
           </div>
           
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-accent-pink/5 blur-[120px] rounded-full pointer-events-none" />
