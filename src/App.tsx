@@ -303,7 +303,14 @@ const handleFirestoreError = (error: any, operation: 'create' | 'update' | 'dele
 
 export default function App() {
   const [lang, setLang] = useState<Language>('AR');
-  const [theme, setTheme] = useState<'dark' | 'light'>('light');
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('eleven_eleven_theme');
+      if (saved === 'dark' || saved === 'light') return saved;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    return 'light';
+  });
   const [user, setUser] = useState<FirebaseUser | null>(null);
 
   const getL = (obj: any, currentLang?: Language) => {
@@ -610,10 +617,12 @@ export default function App() {
       document.body.classList.add('dark-mode');
       document.body.classList.remove('light-mode');
       document.documentElement.classList.add('dark');
+      localStorage.setItem('eleven_eleven_theme', 'dark');
     } else {
       document.body.classList.add('light-mode');
       document.body.classList.remove('dark-mode');
       document.documentElement.classList.remove('dark');
+      localStorage.setItem('eleven_eleven_theme', 'light');
     }
   }, [theme]);
 
