@@ -819,6 +819,23 @@ export default function App() {
       
       const orderRef = doc(collection(db, 'orders'));
       batch.set(orderRef, orderData);
+
+      // Create a user notification document for real-time engagement
+      const notifRef = doc(collection(db, 'notifications'));
+      batch.set(notifRef, {
+        userId: user.uid,
+        orderId: orderRef.id,
+        title: { 
+          EN: "Order Placed Successfully ✨", 
+          AR: "تم استلام طلبك بنجاح ✨" 
+        },
+        message: { 
+          EN: `We've received your order #${orderRef.id.slice(0,6)}. We'll notify you when it's shipped!`, 
+          AR: `لقد استلمنا طلبك #${orderRef.id.slice(0,6)}. سنقوم بإبلاغك فور شحنه!` 
+        },
+        read: false,
+        createdAt: serverTimestamp()
+      });
       
       await batch.commit().catch(e => handleFirestoreError(e, 'write', 'checkout-batch', user));
 
@@ -1065,16 +1082,26 @@ export default function App() {
   };
 
   const shareLocation = () => {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) {
+      notify({ EN: "Geolocation not supported", AR: "متصفحك لا يدعم تحديد الموقع" }, 'error');
+      return;
+    }
     setIsLocating(true);
     navigator.geolocation.getCurrentPosition((pos) => {
       const url = `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`;
       setCheckoutForm(prev => ({ ...prev, location: url }));
       setIsLocating(false);
       notify({ EN: "Location captured!", AR: "تم تحديد موقعك بنجاح!" });
-    }, () => {
+    }, (err) => {
+      console.error("Location Error:", err);
       setIsLocating(false);
-      notify({ EN: "Location blocked", AR: "تم رفض الوصول للمكان" }, 'error');
+      let errMsg = { EN: "Location access denied. Please allow it in settings.", AR: "تم رفض الوصول للمكان. برجاء تفعيل الوصول من الإعدادات." };
+      if (err.code === err.TIMEOUT) errMsg = { EN: "Location request timed out", AR: "انتهت مهلة طلب الموقع" };
+      notify(errMsg, 'error');
+    }, { 
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
     });
   };
 
@@ -2761,7 +2788,7 @@ export default function App() {
               </div>
 
               {/* Cart Items */}
-              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+              <div className="flex-1 cart-scroll-area p-4 sm:p-8 custom-scrollbar">
                 {cart.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center p-10">
                     <motion.div 
@@ -2935,8 +2962,14 @@ export default function App() {
                             <input className="glass-input text-lg py-6" placeholder={lang === 'AR' ? 'رقم احتياطي' : 'Backup Phone'} value={checkoutForm.phone2} onChange={e => setCheckoutForm({...checkoutForm, phone2: e.target.value})} />
                          </div>
                          <button onClick={shareLocation} disabled={isLocating} className={`w-full py-6 rounded-[32px] border-2 border-dashed transition-all flex items-center justify-center gap-4 font-black uppercase tracking-widest text-xs ${checkoutForm.location ? 'bg-accent-green/10 border-accent-green text-accent-green' : 'border-current opacity-30 hover:opacity-100 hover:bg-current/5'}`}>
-                            {checkoutForm.location ? <CheckCircle2 size={24} /> : <Globe size={24} />}
-                            {isLocating ? (lang === 'AR' ? 'جاري التحديد...' : 'Locating...') : (checkoutForm.location ? (lang === 'AR' ? 'تم حفظ الموقع' : 'Location Saved') : (lang === 'AR' ? 'إرسال الموقع الحالي (GPS)' : 'Share GPS Location'))}
+                            {isLocating ? (
+                               <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="text-accent-pink">
+                                 <PlusCircle size={24} />
+                               </motion.div>
+                            ) : (
+                               checkoutForm.location ? <CheckCircle2 size={24} className="text-accent-green" /> : <MapPin size={24} />
+                            )}
+                            {isLocating ? (lang === 'AR' ? 'جاري التحديد...' : 'Locating...') : (checkoutForm.location ? (lang === 'AR' ? 'تم حفظ الموقع بنجاح' : 'Location Saved Perfectly') : (lang === 'AR' ? 'إرسال موقعك بدقة (GPS)' : 'Share Pinpoint Location'))}
                          </button>
                       </div>
                    </div>

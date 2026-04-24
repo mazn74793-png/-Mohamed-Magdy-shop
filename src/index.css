@@ -46,6 +46,13 @@
     /* Fix for Safari backdrop-filter and child element visibility */
     -webkit-backdrop-filter: blur(40px);
     transform: translateZ(0);
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .cart-scroll-area {
+    @apply overflow-y-auto overscroll-contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
   }
 
   .glass-input {
