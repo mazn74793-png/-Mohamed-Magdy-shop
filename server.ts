@@ -75,12 +75,10 @@ async function startServer() {
       
       // Also include the root admin
       const rootAdminEmail = 'motaem23y@gmail.com';
-      // We need to find the UID for this email if possible, 
-      // or just rely on the admins collection having the relevant UIDs.
       
       const subscriptionsSnapshot = await db.collection('subscriptions').get();
       const subscriptions = subscriptionsSnapshot.docs
-        .filter(doc => adminUids.includes(doc.id) || doc.id === 'root_admin_placeholder_check') // In practice we'd match better
+        .filter(doc => adminUids.includes(doc.id) || doc.id === 'root_admin_placeholder_check')
         .map(doc => doc.data().subscription);
 
       const payload = JSON.stringify({
@@ -91,10 +89,6 @@ async function startServer() {
 
       const notifications = subscriptions.map(sub => 
         webpush.sendNotification(sub, payload).catch(err => {
-          if (err.statusCode === 410) {
-            // Subscription expired or removed
-            // db.collection('subscriptions').doc(...).delete();
-          }
           console.error('Push error:', err);
         })
       );

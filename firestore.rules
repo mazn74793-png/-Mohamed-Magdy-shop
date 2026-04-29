@@ -76,7 +76,7 @@ service cloud.firestore {
     match /orders/{orderId} {
       allow list: if isAdmin() || (isSignedIn() && resource.data.customerEmail == request.auth.token.email);
       allow get: if isAdmin() || (isSignedIn() && resource.data.customerEmail == request.auth.token.email);
-      allow create: if isVerified() && isValidOrder(incoming()) && incoming().status == 'pending';
+      allow create: if isSignedIn() && isValidOrder(incoming()) && incoming().status == 'pending';
       allow update: if isAdmin();
       allow delete: if isAdmin();
     }
@@ -92,8 +92,7 @@ service cloud.firestore {
 
     match /notifications/{notificationId} {
       allow list, get: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if (isAdmin() && isValidNotification(incoming()))
-                    || (isVerified() && incoming().get('type', '') == 'ADMIN_ALERT' && isValidNotification(incoming()));
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid && isValidNotification(incoming());
       allow update: if (isSignedIn() && resource.data.userId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['read']))
                     || isAdmin();
       allow delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
