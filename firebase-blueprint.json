@@ -107,7 +107,15 @@
         "facebook": { "type": "string" },
         "instagram": { "type": "string" },
         "tiktok": { "type": "string" },
-        "whatsapp": { "type": "string" }
+        "whatsapp": { "type": "string" },
+        "whatsappLabel": { "type": "string" },
+        "siteName": { "type": "string" },
+        "heroImage": { "type": "string" },
+        "shippingFee": { "type": "number" },
+        "heroTitle": { "type": "object" },
+        "heroDesc": { "type": "object" },
+        "maintenanceMode": { "type": "boolean" },
+        "maintenanceMessage": { "type": "object" }
       }
     },
     "Coupon": {

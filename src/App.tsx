@@ -172,6 +172,8 @@ interface Settings {
   showAnnouncement?: boolean;
   newsletterTitle?: { EN: string; AR: string };
   newsletterText?: { EN: string; AR: string };
+  maintenanceMode?: boolean;
+  maintenanceMessage?: { EN: string; AR: string };
 }
 
 interface ToastMessage {
@@ -373,7 +375,9 @@ export default function App() {
     announcement: { EN: 'Free shipping on orders more than 1000 EGP!', AR: 'توصيل مجاني للطلبات فوق ١٠٠٠ ج.م!' },
     showAnnouncement: true,
     newsletterTitle: { EN: TRANSLATIONS.NEWSLETTER.EN, AR: TRANSLATIONS.NEWSLETTER.AR },
-    newsletterText: { EN: TRANSLATIONS.SUBSCRIBE_TEXT.EN, AR: TRANSLATIONS.SUBSCRIBE_TEXT.AR }
+    newsletterText: { EN: TRANSLATIONS.SUBSCRIBE_TEXT.EN, AR: TRANSLATIONS.SUBSCRIBE_TEXT.AR },
+    maintenanceMode: false,
+    maintenanceMessage: { EN: 'Site is under maintenance. We will be back soon!', AR: 'الموقع تحت الصيانة حالياً. سنعود قريباً!' }
   });
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
@@ -1404,6 +1408,56 @@ export default function App() {
     }
   };
 
+  if (settings.maintenanceMode && !isAdmin && !isInitialLoading) {
+    return (
+      <div className={`fixed inset-0 z-[9999] flex items-center justify-center p-10 ${theme === 'dark' ? 'bg-[#0a0a0f] text-white' : 'bg-[#f8f9fa] text-gray-900'} overflow-hidden`}>
+        <div className="absolute inset-x-0 h-px top-[20%] bg-accent-pink/20" />
+        <div className="absolute inset-x-0 h-px bottom-[20%] bg-accent-pink/20" />
+        <motion.div 
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative text-center space-y-12 max-w-4xl"
+        >
+          <div className="text-[120px] sm:text-[180px] font-black italic tracking-tighter leading-none opacity-5 select-none pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap">
+            11 : 11
+          </div>
+          
+          <div className="space-y-6">
+            <h1 className="text-4xl sm:text-7xl font-black uppercase tracking-tighter leading-none italic">
+               {lang === 'AR' ? 'الموقع مغلق' : 'Site Closed'}
+            </h1>
+            <p className="text-lg sm:text-2xl font-light leading-relaxed max-w-3xl mx-auto opacity-70">
+              {getL(settings.maintenanceMessage)}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap justify-center gap-6 pt-10">
+            {settings.whatsapp && (
+              <a href={`https://wa.me/${settings.whatsapp}`} target="_blank" rel="noreferrer" className="glass px-10 py-5 rounded-full text-xs font-black uppercase tracking-[4px] hover:bg-accent-pink hover:text-white transition-all">
+                {lang === 'AR' ? 'تواصل معنا' : 'Contact Us'}
+              </a>
+            )}
+            <button onClick={() => setLang(lang === 'EN' ? 'AR' : 'EN')} className="glass px-10 py-5 rounded-full text-xs font-black uppercase tracking-[4px] hover:bg-white hover:text-black transition-all">
+              {lang === 'EN' ? 'العربية' : 'English'}
+            </button>
+          </div>
+          
+          {user && (
+            <div className="pt-20">
+               <button onClick={handleLogout} className="text-[10px] font-black uppercase tracking-[4px] opacity-30 hover:opacity-100 transition-opacity">
+                  {t('LOGOUT')}
+               </button>
+            </div>
+          )}
+        </motion.div>
+        
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 text-[10px] font-black uppercase tracking-[8px] opacity-10">
+          Powered by Eleven Eleven
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`flex flex-col w-full min-h-screen transition-all duration-500 ${theme === 'dark' ? 'bg-[#0a0a0f] text-white' : 'bg-[#f8f9fa] text-gray-900'}`} dir={lang === 'AR' ? 'rtl' : 'ltr'}>
       {/* Initial Loading Overlay */}
@@ -2091,6 +2145,40 @@ export default function App() {
                           <label className="text-[9px] font-bold uppercase opacity-50">WhatsApp Button Label</label>
                           <input type="text" className="glass-input !bg-white/5 !text-white text-xs" value={settings.whatsappLabel || ''} onChange={e => setSettings({...settings, whatsappLabel: e.target.value})} placeholder="e.g. Contact 11:11" />
                         </div>
+                      </div>
+                    </div>
+
+                    <div className="p-8 rounded-[40px] bg-red-500/5 border border-red-500/20 space-y-6">
+                      <div className="flex items-center gap-4">
+                         <div className="p-3 bg-red-500/20 text-red-500 rounded-2xl">
+                            <Activity size={24} />
+                         </div>
+                         <div>
+                           <h3 className="text-xl font-black uppercase tracking-widest">{lang === 'AR' ? 'صيانة الموقع' : 'Site Maintenance'}</h3>
+                           <p className="text-[10px] opacity-50 font-bold uppercase tracking-[2px]">Close/Open public access</p>
+                         </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-4 py-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest opacity-50">{lang === 'AR' ? 'حالة الموقع:' : 'Status:'}</span>
+                        <button 
+                          onClick={() => setSettings({...settings, maintenanceMode: !settings.maintenanceMode})}
+                          className={`relative w-20 h-10 rounded-full transition-all flex items-center p-1 ${settings.maintenanceMode ? 'bg-red-500' : 'bg-accent-green'}`}
+                        >
+                          <div className={`w-8 h-8 rounded-full bg-white shadow-lg transition-all ${settings.maintenanceMode ? 'translate-x-10' : 'translate-x-0'}`} />
+                        </button>
+                        <span className="text-xs font-black uppercase tracking-widest">{settings.maintenanceMode ? (lang === 'AR' ? 'مغلق' : 'CLOSED') : (lang === 'AR' ? 'متاح' : 'OPEN')}</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className="text-[9px] font-bold uppercase opacity-40">Maintenance Message (EN)</label>
+                            <input type="text" className="glass-input !bg-white/5 !text-white text-xs" value={settings.maintenanceMessage?.EN || ''} onChange={e => setSettings({...settings, maintenanceMessage: {...settings.maintenanceMessage, EN: e.target.value}} as any)} placeholder="English message..." />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[9px] font-bold uppercase opacity-40">رسالة الصيانة (AR)</label>
+                            <input type="text" className="glass-input !bg-white/5 !text-white text-xs" value={settings.maintenanceMessage?.AR || ''} onChange={e => setSettings({...settings, maintenanceMessage: {...settings.maintenanceMessage, AR: e.target.value}} as any)} placeholder="رسالة الصيانة..." />
+                          </div>
                       </div>
                     </div>
 
